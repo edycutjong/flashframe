@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flashframe"
+version = "0.1.0"
+description = "Photosensitivity hazard detector"
+dependencies = [
+    "click",
+    "pydantic",
+    "google-genai",
+    "python-dotenv",
+]
+
+[project.scripts]
+flashframe = "flashframe.cli:cli"

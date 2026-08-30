@@ -10,3 +10,9 @@ coverage/
 *.mp4
 !span.mp4
 !synthetic_false_positive.mp4
+
+# Allow specific asset mp4s
+!assets/control_clean.mp4
+!assets/hard_fail_strobe.mp4
+!assets/borderline_screen_area.mp4
+src/*.egg-info
