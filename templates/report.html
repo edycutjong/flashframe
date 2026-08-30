@@ -87,12 +87,20 @@
             </div>
             
             <div class="filmstrip" aria-hidden="true">
-                <div class="filmstrip-frame"></div>
-                <div class="filmstrip-frame"></div>
-                <div class="filmstrip-frame"></div>
-                <div class="filmstrip-frame"></div>
-                <div class="filmstrip-frame"></div>
-                <div class="filmstrip-frame"></div>
+                {% if filmstrip_note %}
+                    <div style="padding: 2rem; color: var(--text-dim); font-style: italic; text-align: center; width: 100%;">{{ filmstrip_note }}</div>
+                {% elif filmstrip_data %}
+                    {% for img in filmstrip_data %}
+                    <img class="filmstrip-frame" src="{{ img }}" alt="" />
+                    {% endfor %}
+                {% else %}
+                    <div class="filmstrip-frame"></div>
+                    <div class="filmstrip-frame"></div>
+                    <div class="filmstrip-frame"></div>
+                    <div class="filmstrip-frame"></div>
+                    <div class="filmstrip-frame"></div>
+                    <div class="filmstrip-frame"></div>
+                {% endif %}
             </div>
             
             <div class="card-grid">

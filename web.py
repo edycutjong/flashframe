@@ -207,66 +207,46 @@ async def report(request: Request, scan_id: str):
         actual_source_file = f"assets/{source_file}"
     elif not os.path.exists(actual_source_file):
         actual_source_file = "test_clip.mp4"
-        
     filmstrip_data = []
-    if not cert['passed'] and cert['frame_end'] > cert['frame_start']:
-        n_frames = 7
-        clip_path = "span.mp4"
-        debug_log = []
-        debug_log.append(f"clip_path exists: {os.path.exists(clip_path)}")
-        if os.path.exists(clip_path):
-            try:
-                out = subprocess.check_output([
-                    "ffprobe", "-v", "error", "-select_streams", "v:0",
-                    "-count_packets", "-show_entries", "stream=nb_read_packets",
-                    "-of", "csv=p=0", clip_path
-                ])
-                actual_frames = int(out.decode().strip())
-                debug_log.append(f"ffprobe success: actual_frames={actual_frames}")
-            except Exception as e:
-                actual_frames = cert['frame_end'] - cert['frame_start']
-                debug_log.append(f"ffprobe failed: {e}. Fallback: {actual_frames}")
-                
-            actual_frames = max(7, actual_frames)
-            step = max(1, actual_frames // (n_frames - 1))
-            indices = [i * step for i in range(n_frames)]
-            if indices[-1] >= actual_frames:
-                indices[-1] = actual_frames - 1
-                
-            select_expr = "+".join(f"eq(n\,{idx})" for idx in indices)
-            debug_log.append(f"select_expr: {select_expr}")
-            
-            with tempfile.TemporaryDirectory() as tmpdir:
-                cmd = [
-                    "ffmpeg", "-y", "-i", clip_path,
-                    "-vf", f"select={select_expr}",
-                    "-fps_mode", "vfr",
-                    os.path.join(tmpdir, "frame_%d.jpg")
-                ]
-                debug_log.append(f"cmd: {' '.join(cmd)}")
-                res = subprocess.run(cmd, capture_output=True, text=True)
-                debug_log.append(f"ffmpeg returncode: {res.returncode}")
-                if res.returncode != 0:
-                    debug_log.append(f"ffmpeg stderr: {res.stderr}")
-                
-                for i in range(1, n_frames + 1):
-                    fpath = os.path.join(tmpdir, f"frame_{i}.jpg")
-                    if os.path.exists(fpath):
-                        with open(fpath, "rb") as f:
-                            b64 = base64.b64encode(f.read()).decode("utf-8")
-                            filmstrip_data.append(f"data:image/jpeg;base64,{b64}")
-                    else:
-                        debug_log.append(f"{fpath} missing")
-                        
-        if not filmstrip_data:
-            err_msg = "\n".join(debug_log)
-            err_b64 = base64.b64encode(err_msg.encode('utf-8')).decode('utf-8')
-            filmstrip_data.append(f"data:text/plain;base64,{err_b64}")
-
+    filmstrip_note = None
+    
     source_fps = float(meta_row.get("source_fps", 25.0))
-
-
-
+    measured_fps = float(meta_row.get("measured_fps", 25.0))
+    
+    if not cert['passed'] and cert['frame_end'] > cert['frame_start']:
+        n_frames = 9
+        clip_path = actual_source_file
+        
+        if not os.path.exists(clip_path) or clip_path == "test_clip.mp4":
+            filmstrip_note = "Source footage unavailable for inline preview."
+        else:
+            try:
+                start_seconds = cert['frame_start'] / source_fps
+                end_seconds = cert['frame_end'] / source_fps
+                duration = max(0.1, end_seconds - start_seconds)
+                fps_val = n_frames / duration
+                
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    cmd = [
+                        "ffmpeg", "-y", "-ss", str(start_seconds), "-to", str(end_seconds),
+                        "-i", clip_path,
+                        "-vf", f"fps={fps_val},scale=-1:120",
+                        os.path.join(tmpdir, "frame_%d.jpg")
+                    ]
+                    subprocess.run(cmd, capture_output=True, text=True)
+                    
+                    for i in range(1, 20):
+                        fpath = os.path.join(tmpdir, f"frame_{i}.jpg")
+                        if os.path.exists(fpath):
+                            with open(fpath, "rb") as f:
+                                b64 = base64.b64encode(f.read()).decode("utf-8")
+                                filmstrip_data.append(f"data:image/jpeg;base64,{b64}")
+                        else:
+                            break
+                            
+            except Exception as e:
+                filmstrip_note = "Failed to extract frames for preview."
+                
     df = pd.DataFrame(rows)
     if not df.empty and 'frame_idx' not in df.columns:
         if len(df.columns) >= 2:
@@ -361,5 +341,6 @@ async def report(request: Request, scan_id: str):
         "min_frame": min_frame,
         "max_frame": max_frame,
         "no_data": no_data,
-        "filmstrip_data": filmstrip_data
+        "filmstrip_data": filmstrip_data,
+        "filmstrip_note": filmstrip_note
     })
