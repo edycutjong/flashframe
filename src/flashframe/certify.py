@@ -24,22 +24,29 @@ SELECT
     if not res2:
         raise RuntimeError("Ledger insertion failed: no row returned on read-back.")
         
-    if isinstance(res2, str):
-        try:
-            row = json.loads(res2)
-        except json.JSONDecodeError:
-            import ast
-            row = ast.literal_eval(res2)
-    else:
-        row = res2
-
-    if isinstance(row, list) and len(row) > 0:
-        row = row[0]
-    elif isinstance(row, list) and len(row) == 0:
-        raise RuntimeError("Ledger insertion failed: no row returned on read-back.")
-        
-    if isinstance(row, dict) and "isError" in row and row["isError"]:
-        raise RuntimeError(f"Ledger read-back error: {row}")
+    row = {}
+    try:
+        if isinstance(res2, dict):
+            if res2.get("isError"):
+                raise RuntimeError(f"Ledger read-back error: {res2}")
+            text = res2.get("structuredContent", {}).get("result", "")
+            if not text and res2.get("content"):
+                text = res2["content"][0].get("text", "")
+            
+            parsed = json.loads(text)
+            if "rows" in parsed and "columns" in parsed:
+                if len(parsed["rows"]) > 0:
+                    row = dict(zip(parsed["columns"], parsed["rows"][0]))
+                else:
+                    raise RuntimeError("Ledger insertion failed: no row returned on read-back.")
+            elif isinstance(parsed, list) and len(parsed) > 0:
+                row = parsed[0]
+            else:
+                row = parsed
+    except Exception as e:
+        if not isinstance(e, RuntimeError):
+            raise RuntimeError(f"Ledger insertion failed: {e}") from e
+        raise
 
     if row.get('measured') != verdict.measured_value or row.get('frame_start') != verdict.frame_start:
         raise RuntimeError(f"Ledger mismatch: inserted {verdict.measured_value}, read back {row.get('measured')}")
