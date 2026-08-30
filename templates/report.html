@@ -148,7 +148,7 @@
                         <div class="confirm-actions">
                             <button class="btn primary" id="btn-play-reduced" title="Reduced-brightness playback is for review comfort and is NOT the measured signal.">Play at reduced brightness</button>
                             <button class="btn" id="btn-play-full">Play as measured</button>
-                            <button class="btn" id="btn-cancel" style="display: none;">Cancel</button>
+                            <button class="btn" id="btn-cancel">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -170,12 +170,14 @@
         // Global playback disable
         const globalDisable = document.getElementById('global-disable-playback');
         const isGlobalDisabled = localStorage.getItem('flashframe_disable_playback') === 'true';
-        globalDisable.checked = isGlobalDisabled;
+        if (globalDisable) globalDisable.checked = isGlobalDisabled;
         
-        globalDisable.addEventListener('change', (e) => {
-            localStorage.setItem('flashframe_disable_playback', e.target.checked);
-            applyPlaybackConstraints();
-        });
+        if (globalDisable) {
+            globalDisable.addEventListener('change', (e) => {
+                localStorage.setItem('flashframe_disable_playback', e.target.checked);
+                applyPlaybackConstraints();
+            });
+        }
         
         const gate = document.getElementById('safety-gate-1');
         const triggerBtn = document.getElementById('btn-trigger-play');
@@ -184,10 +186,11 @@
         const btnReduced = document.getElementById('btn-play-reduced');
         const btnFull = document.getElementById('btn-play-full');
         const btnCancel = document.getElementById('btn-cancel');
+        const gateInitial = document.getElementById('gate-initial-1');
         
         function applyPlaybackConstraints() {
             const motionMatch = window.matchMedia('(prefers-reduced-motion: reduce)');
-            const disabled = motionMatch.matches || globalDisable.checked;
+            const disabled = motionMatch.matches || (globalDisable && globalDisable.checked);
             
             if (disabled) {
                 if(triggerBtn) triggerBtn.disabled = true;
@@ -195,8 +198,10 @@
                 if(btnFull) btnFull.disabled = true;
                 if(vid) vid.pause();
                 if(gateInitial) gateInitial.style.display = 'none';
-                if(layer) layer.style.display = 'flex';
-                if(layer) layer.style.background = 'rgba(0,0,0,0.85)';
+                if(layer) {
+                    layer.style.display = 'flex';
+                    layer.style.background = 'rgba(0,0,0,0.85)';
+                }
                 if(btnCancel) btnCancel.style.display = 'none';
                 if(btnReduced) btnReduced.style.display = 'none';
                 if(btnFull) btnFull.style.display = 'none';
@@ -205,17 +210,17 @@
                 if(btnReduced) btnReduced.disabled = false;
                 if(btnFull) btnFull.disabled = false;
                 // If we disabled playback globally and re-enabled it, reset to initial state
-                if(vid && vid.paused && gateInitial && gateInitial.style.display === 'none' && (!btnCancel || btnCancel.style.display === 'none')) {
-                    if(gateInitial) gateInitial.style.display = 'flex';
+                if(gateInitial && gateInitial.style.display === 'none' && (!btnCancel || btnCancel.style.display === 'none')) {
+                    gateInitial.style.display = 'flex';
                     if(layer) layer.style.display = 'none';
                 }
             }
         }
+
         
         window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', applyPlaybackConstraints);
         applyPlaybackConstraints();
         
-        const gateInitial = document.getElementById('gate-initial-1');
         if (triggerBtn) {
             triggerBtn.addEventListener('click', () => {
                 gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
