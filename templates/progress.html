@@ -24,11 +24,23 @@
         const scanId = "{{ scan_id }}";
         const stageList = document.getElementById('stage-list');
         
+        let fetchCount = 0;
+        let statusInterval;
+        let slowQueryTimeout;
+
         async function pollStatus() {
             try {
+                fetchCount++;
                 const res = await fetch(`/api/scan/${scanId}/status`);
                 const data = await res.json();
                 let allDone = true;
+                
+                // If we get a response, clear the slow query warning timeout
+                if (slowQueryTimeout) {
+                    clearTimeout(slowQueryTimeout);
+                }
+                const msgEl = document.getElementById('slow-status');
+                if (msgEl) msgEl.style.display = 'none';
                 
                 data.stages.forEach(stage => {
                     const el = document.getElementById(`stage-${stage.name}`);
@@ -49,35 +61,27 @@
                         window.location.href = `/report/${scanId}`;
                     }, 500);
                 } else {
-                    setTimeout(pollStatus, 1000);
+                    statusInterval = setTimeout(pollStatus, 1000);
                 }
             } catch (err) {
                 console.error(err);
-                setTimeout(pollStatus, 2000);
+                statusInterval = setTimeout(pollStatus, 2000);
             }
         }
         
-        // Initial delay to show the animation ticking
-        let i = 0;
-        function fakeTick() {
-            const stages = ['Extract', 'Ingest', 'Detect', 'Adjudicate', 'Certify'];
-            if (i < stages.length) {
-                const el = document.getElementById(`stage-${stages[i]}`);
-                if(el) {
-                    el.classList.remove('pending');
-                    el.classList.add('done');
-                    el.innerHTML = `${stages[i]} <span class="tick" aria-hidden="true">✓</span>`;
-                }
-                i++;
-                setTimeout(fakeTick, 300); // 150ms mark + 150ms stagger
-            } else {
-                setTimeout(() => {
-                    window.location.href = `/report/${scanId}`;
-                }, 500);
+        slowQueryTimeout = setTimeout(() => {
+            let msgEl = document.getElementById('slow-status');
+            if (!msgEl) {
+                msgEl = document.createElement('p');
+                msgEl.id = 'slow-status';
+                msgEl.style.color = '#ff9800';
+                msgEl.textContent = 'Waking the analytics warehouse (ClickHouse Cloud suspends idle services; first query can take ~30s)';
+                document.querySelector('main').appendChild(msgEl);
             }
-        }
+            msgEl.style.display = 'block';
+        }, 3000);
         
-        setTimeout(fakeTick, 500);
+        pollStatus();
     </script>
 </body>
 </html>

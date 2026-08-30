@@ -7,7 +7,46 @@ import csv
 import pandas as pd
 import uuid
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+import asyncio
+import os
+from mcp.client.stdio import StdioServerParameters
+from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
+from dotenv import load_dotenv
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
+    env = os.environ.copy()
+    env.update({
+        "CLICKHOUSE_HOST": os.environ.get("CLICKHOUSE_HOST", ""),
+        "CLICKHOUSE_USER": os.environ.get("CLICKHOUSE_USER", "default"),
+        "CLICKHOUSE_PASSWORD": os.environ.get("CLICKHOUSE_PASSWORD", ""),
+        "CLICKHOUSE_DATABASE": os.environ.get("CLICKHOUSE_DATABASE", "flashframe"),
+    })
+    
+    mcp_python = os.path.join(os.path.dirname(__file__), ".venv", "bin", "python3")
+    
+    clickhouse = McpToolset(
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command=mcp_python,
+                args=["-m", "mcp_clickhouse.main"],
+                env=env,
+            )
+        )
+    )
+    try:
+        tools = await clickhouse.get_tools()
+        run_query_tool = next(t for t in tools if t.name == "run_query")
+        # Warm-up query
+        asyncio.create_task(run_query_tool.run_async(args={"query": "SELECT 1"}, tool_context=None))
+    except Exception as e:
+        print("Warmup query failed:", e)
+        
+    yield
+
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/media", StaticFiles(directory="."), name="media")

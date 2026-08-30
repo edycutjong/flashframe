@@ -29,5 +29,26 @@
             </form>
         </section>
     </main>
+    <script>
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', () => {
+                const btns = form.querySelectorAll('button[type="submit"]');
+                btns.forEach(b => { b.disabled = true; b.textContent = 'Scanning...'; });
+                
+                setTimeout(() => {
+                    let msgEl = document.getElementById('slow-status');
+                    if (!msgEl) {
+                        msgEl = document.createElement('p');
+                        msgEl.id = 'slow-status';
+                        msgEl.style.color = '#ff9800';
+                        msgEl.style.marginTop = '1rem';
+                        msgEl.textContent = 'Waking the analytics warehouse (ClickHouse Cloud suspends idle services; first query can take ~30s)';
+                        document.querySelector('main').appendChild(msgEl);
+                    }
+                    msgEl.style.display = 'block';
+                }, 3000);
+            });
+        });
+    </script>
 </body>
 </html>
