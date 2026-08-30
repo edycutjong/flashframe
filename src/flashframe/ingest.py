@@ -7,7 +7,7 @@ async def run_sql(tool, sql):
         print(f"Error executing SQL: {sql[:100]}... {res}")
     return res
 
-async def setup_db_and_ingest(run_query_tool, scan_id):
+async def setup_db_and_ingest(run_query_tool, scan_id, video_path='unknown', source_fps=25.0, measured_fps=10.0):
     # Try to create tables if they don't exist, otherwise truncate them
     await run_sql(run_query_tool, """
 CREATE TABLE IF NOT EXISTS frame_metrics (
@@ -51,6 +51,17 @@ CREATE TABLE IF NOT EXISTS violation_ledger (
 
     await run_sql(run_query_tool, f"DELETE FROM frame_metrics WHERE scan_id = '{scan_id}'")
     await run_sql(run_query_tool, "TRUNCATE TABLE IF EXISTS threshold_reference")
+    
+    await run_sql(run_query_tool, f"INSERT INTO scan_metadata VALUES ('{scan_id}', '{video_path}', {source_fps}, {measured_fps})")
+
+    await run_sql(run_query_tool, """
+CREATE TABLE IF NOT EXISTS scan_metadata (
+    scan_id      UUID,
+    source_file  String,
+    source_fps   Float32,
+    measured_fps Float32
+) ENGINE = MergeTree ORDER BY scan_id
+""")
 
     # We get threshold from thresholds.csv in CWD
     thresholds_file = 'thresholds.csv'

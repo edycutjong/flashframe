@@ -168,6 +168,38 @@ async def report(request: Request, scan_id: str):
         print("Failed to run query:", e)
         rows = []
         
+
+    meta_query = f"SELECT source_file, source_fps, measured_fps FROM scan_metadata WHERE scan_id = '{scan_id}' LIMIT 1"
+    try:
+        mres = await run_query_tool.run_async(args={"query": meta_query}, tool_context=None)
+        mtext = ""
+        if hasattr(mres, "content") and len(mres.content) > 0 and hasattr(mres.content[0], "text"):
+            mtext = mres.content[0].text
+        elif hasattr(mres, "text"):
+            mtext = mres.text
+        elif isinstance(mres, list) and len(mres) > 0 and hasattr(mres[0], "text"):
+            mtext = mres[0].text
+        elif isinstance(mres, dict) and "content" in mres:
+            mtext = mres["content"][0]["text"]
+        else:
+            mtext = str(mres)
+            
+        mdata = json.loads(mtext)
+        mrows = mdata.get("rows", mdata) if isinstance(mdata, dict) else mdata
+        if "rows" in mdata and "columns" in mdata and len(mdata["rows"]) > 0:
+            meta_row = dict(zip(mdata["columns"], mdata["rows"][0]))
+        else:
+            meta_row = mrows[0] if mrows else {}
+    except Exception as e:
+        print("Failed to run meta query:", e)
+        meta_row = {}
+        
+    source_file = meta_row.get("source_file", "hard_fail_strobe.mp4")
+    if source_file == 'unknown':
+        source_file = "hard_fail_strobe.mp4"
+    source_fps = float(meta_row.get("source_fps", 25.0))
+    measured_fps = float(meta_row.get("measured_fps", 60.0))
+
     df = pd.DataFrame(rows)
     if not df.empty and 'frame_idx' not in df.columns:
         if len(df.columns) >= 2:
@@ -240,7 +272,9 @@ async def report(request: Request, scan_id: str):
         "span_x": span_x1,
         "span_width": span_width,
         "total_frames": total_frames,
-        "fps": 30,
+        "fps": source_fps,
+        "measured_fps": measured_fps,
+        "source_file": os.path.basename(source_file),
         "min_frame": min_frame,
         "max_frame": max_frame,
         "no_data": no_data

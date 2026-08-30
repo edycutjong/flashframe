@@ -131,7 +131,7 @@ async def run_pipeline(video_path):
     scan_id = run_extraction(video_path, fps_override=10)
     
     print(f"Ingesting {scan_id}...")
-    await setup_db_and_ingest(run_query_tool, scan_id)
+    await setup_db_and_ingest(run_query_tool, scan_id, video_path, 25.0, 10.0)
     
     print("Detecting violations...")
     detect_res = await detect_violations(run_query_tool, scan_id, fps=10)
@@ -169,7 +169,7 @@ async def run_pipeline(video_path):
         resample_count += 1
         print(f"\n>>> resample_frames(span, {target_fps}) <<<\n")
         scan_id_new = run_extraction(video_path, fps_override=target_fps, frame_start=frame_start, frame_end=frame_end)
-        await setup_db_and_ingest(run_query_tool, scan_id_new)
+        await setup_db_and_ingest(run_query_tool, scan_id_new, video_path, 25.0, target_fps)
         new_res = await detect_violations(run_query_tool, scan_id_new, fps=target_fps)
         try:
             data = json.loads(new_res)

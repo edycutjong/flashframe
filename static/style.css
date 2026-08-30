@@ -118,12 +118,15 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 }
 
 .timeline-curve {
-    fill: var(--text-dim);
-    transition: fill 0.3s;
+    fill: rgba(255, 255, 255, 0.1);
+    stroke: var(--text);
+    stroke-width: 1.5px;
+    transition: all 0.3s;
 }
 
 .timeline-curve.pass-curve {
-    fill: var(--pass);
+    fill: rgba(74, 222, 128, 0.1);
+    stroke: var(--pass);
 }
 
 .threshold-line {

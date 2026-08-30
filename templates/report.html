@@ -24,7 +24,7 @@
                 {{ verdict }} <span aria-hidden="true">{{ glyph }}</span>
             </div>
             <div class="verdict-meta">
-                <div><strong>span.mp4</strong> &bull; {{ total_frames }} frames &bull; {{ fps }} fps</div>
+                <div><strong>{{ source_file }}</strong> &bull; {{ total_frames }} frames &bull; {{ "%.0f" | format(fps) }} fps</div>
                 <div>Territory: UK-Ofcom &bull; Ofcom 2.12 - screening-grade</div>
                 <div>{{ 1 if not cert.passed else 0 }} violation(s)</div>
             </div>
@@ -97,11 +97,9 @@
             
             <div class="card-grid">
                 <div>
-                    <h3>MEASURED (ClickHouse, 60fps)</h3>
+                    <h3>MEASURED (ClickHouse, {{ "%.0f" | format(measured_fps) }}fps)</h3>
                     <ul>
                         <li>Flash rate: <strong>{{ "%.2f" | format(cert.measured_value) }} flashes/sec</strong></li>
-                        <li>Luma delta: > 20 IRE</li>
-                        <li>Screen area: > 25%</li>
                     </ul>
                     <div style="margin-top: 1rem; color: var(--text-dim); font-size: 0.9rem;">
                         PUBLISHED: thresholds.csv row 1 (UK-Ofcom, 3.0 Hz, 20.0 IRE, 25.0%)
@@ -110,6 +108,8 @@
                 <div class="adjudicated-block">
                     <h3>THRESHOLD (Ofcom 2.12)</h3>
                     <p><strong>3.00 flashes/sec</strong></p>
+                    <p>Luma delta: > 20 IRE</p>
+                    <p>Screen area: > 25%</p>
                 </div>
                 <div class="adjudicated-block">
                     <h3>ADJUDICATED (Gemini)</h3>
