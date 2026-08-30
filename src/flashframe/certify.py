@@ -18,17 +18,42 @@ SELECT
     res = await run_query_tool.run_async(args={"query": write_ledger_sql}, tool_context=None)
     
     # read it back
-    res2 = await run_query_tool.run_async(args={"query": f"SELECT * FROM violation_ledger WHERE scan_id = '{scan_id}'"}, tool_context=None)
+    read_back_query = f"SELECT * FROM violation_ledger WHERE scan_id = '{scan_id}' ORDER BY certified_at DESC LIMIT 1"
+    res2 = await run_query_tool.run_async(args={"query": read_back_query}, tool_context=None)
     
-    # We should return a dict based on the read-back values, or just build the cert.
+    if not res2:
+        raise RuntimeError("Ledger insertion failed: no row returned on read-back.")
+        
+    if isinstance(res2, str):
+        try:
+            row = json.loads(res2)
+        except json.JSONDecodeError:
+            import ast
+            row = ast.literal_eval(res2)
+    else:
+        row = res2
+
+    if isinstance(row, list) and len(row) > 0:
+        row = row[0]
+    elif isinstance(row, list) and len(row) == 0:
+        raise RuntimeError("Ledger insertion failed: no row returned on read-back.")
+        
+    if isinstance(row, dict) and "isError" in row and row["isError"]:
+        raise RuntimeError(f"Ledger read-back error: {row}")
+
+    if row.get('measured') != verdict.measured_value or row.get('frame_start') != verdict.frame_start:
+        raise RuntimeError(f"Ledger mismatch: inserted {verdict.measured_value}, read back {row.get('measured')}")
+    
     cert = {
         "scan_id": scan_id,
-        "passed": verdict.passed,
-        "frame_start": verdict.frame_start,
-        "frame_end": verdict.frame_end,
-        "measured_value": verdict.measured_value,
-        "cause": verdict.cause,
-        "remediation": verdict.remediation
+        "certified_at": row.get('certified_at'),
+        "passed": bool(row.get('passed', verdict.passed)),
+        "frame_start": row.get('frame_start', verdict.frame_start),
+        "frame_end": row.get('frame_end', verdict.frame_end),
+        "measured_value": row.get('measured', verdict.measured_value),
+        "cause": row.get('cause', verdict.cause),
+        "remediation": row.get('remediation', verdict.remediation),
+        "read_back_query": read_back_query
     }
     
     with open("certificate.json", "w") as f:
