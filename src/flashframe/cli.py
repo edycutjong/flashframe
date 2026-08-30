@@ -31,7 +31,7 @@ def seed(feature):
         pass
     else:
         click.echo("Running seed clip generation...")
-        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "scripts", "generate_seed_clips.sh")
+        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "generate_seed_clips.sh")
         subprocess.run(["bash", script_path], check=True)
         click.echo("Clips generated.")
 
@@ -53,7 +53,7 @@ async def run_pipeline(video_path):
         "CHDB_ENABLED": "true"
     })
 
-    mcp_python = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "build", ".venv", "bin", "python3")
+    mcp_python = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "bin", "python3")
 
     clickhouse = McpToolset(
         connection_params=StdioConnectionParams(
