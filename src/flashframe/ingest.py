@@ -7,7 +7,7 @@ async def run_sql(tool, sql):
         print(f"Error executing SQL: {sql[:100]}... {res}")
     return res
 
-async def setup_db_and_ingest(run_query_tool):
+async def setup_db_and_ingest(run_query_tool, scan_id):
     # Try to create tables if they don't exist, otherwise truncate them
     await run_sql(run_query_tool, """
 CREATE TABLE IF NOT EXISTS frame_metrics (
@@ -49,9 +49,8 @@ CREATE TABLE IF NOT EXISTS violation_ledger (
 ) ENGINE = MergeTree ORDER BY (scan_id, certified_at)
 """)
 
-    await run_sql(run_query_tool, "TRUNCATE TABLE IF EXISTS frame_metrics")
+    await run_sql(run_query_tool, f"DELETE FROM frame_metrics WHERE scan_id = '{scan_id}'")
     await run_sql(run_query_tool, "TRUNCATE TABLE IF EXISTS threshold_reference")
-    await run_sql(run_query_tool, "TRUNCATE TABLE IF EXISTS violation_ledger")
 
     # We get threshold from thresholds.csv in CWD
     thresholds_file = 'thresholds.csv'
