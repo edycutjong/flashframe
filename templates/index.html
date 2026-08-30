@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload - Flashframe</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Flashframe</h1>
+    </header>
+    <main class="container">
+        <h2>Upload Video for Scanning</h2>
+        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+            <div class="drop-zone">
+                <label for="file-upload">Drag/drop or click to select video</label>
+                <input type="file" id="file-upload" name="file" accept="video/mp4,video/x-m4v,video/*">
+            </div>
+            <button type="submit" class="btn primary">Scan</button>
+        </form>
+
+        <section class="seed-clips">
+            <h3>Or use seed clips for demo:</h3>
+            <form action="/upload" method="post">
+                <button type="submit" name="seed_clip" value="control_clean" class="btn">Demo: Control Clean</button>
+                <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn">Demo: Hard Fail Strobe</button>
+                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Demo: Borderline Screen Area</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

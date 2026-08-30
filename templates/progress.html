@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanning - Flashframe</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Flashframe</h1>
+    </header>
+    <main class="container">
+        <h2>Scanning {{ scan_id }}</h2>
+        <ul id="stage-list" class="stage-list">
+            <li id="stage-Extract" class="stage pending">Extract</li>
+            <li id="stage-Ingest" class="stage pending">Ingest</li>
+            <li id="stage-Detect" class="stage pending">Detect</li>
+            <li id="stage-Adjudicate" class="stage pending">Adjudicate</li>
+            <li id="stage-Certify" class="stage pending">Certify</li>
+        </ul>
+    </main>
+    <script>
+        const scanId = "{{ scan_id }}";
+        const stageList = document.getElementById('stage-list');
+        
+        async function pollStatus() {
+            try {
+                const res = await fetch(`/api/scan/${scanId}/status`);
+                const data = await res.json();
+                let allDone = true;
+                
+                data.stages.forEach(stage => {
+                    const el = document.getElementById(`stage-${stage.name}`);
+                    if (el) {
+                        if (stage.status === 'done' && el.classList.contains('pending')) {
+                            el.classList.remove('pending');
+                            el.classList.add('done');
+                            el.innerHTML = `${stage.name} <span class="tick" aria-hidden="true">✓</span>`;
+                        }
+                        if (stage.status !== 'done') {
+                            allDone = false;
+                        }
+                    }
+                });
+                
+                if (data.status === 'complete' || allDone) {
+                    setTimeout(() => {
+                        window.location.href = `/report/${scanId}`;
+                    }, 500);
+                } else {
+                    setTimeout(pollStatus, 1000);
+                }
+            } catch (err) {
+                console.error(err);
+                setTimeout(pollStatus, 2000);
+            }
+        }
+        
+        // Initial delay to show the animation ticking
+        let i = 0;
+        function fakeTick() {
+            const stages = ['Extract', 'Ingest', 'Detect', 'Adjudicate', 'Certify'];
+            if (i < stages.length) {
+                const el = document.getElementById(`stage-${stages[i]}`);
+                if(el) {
+                    el.classList.remove('pending');
+                    el.classList.add('done');
+                    el.innerHTML = `${stages[i]} <span class="tick" aria-hidden="true">✓</span>`;
+                }
+                i++;
+                setTimeout(fakeTick, 300); // 150ms mark + 150ms stagger
+            } else {
+                setTimeout(() => {
+                    window.location.href = `/report/${scanId}`;
+                }, 500);
+            }
+        }
+        
+        setTimeout(fakeTick, 500);
+    </script>
+</body>
+</html>

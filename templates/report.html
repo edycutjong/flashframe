@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report - Flashframe</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Flashframe Report</h1>
+        <div>
+            <label>
+                <input type="checkbox" id="global-disable-playback">
+                Disable all clip playback
+            </label>
+        </div>
+    </header>
+    <main class="container">
+        
+        <!-- A. VERDICT HEADER -->
+        <div class="verdict-header">
+            <div class="verdict-large" data-verdict="{{ verdict }}">
+                {{ verdict }} <span aria-hidden="true">{{ glyph }}</span>
+            </div>
+            <div class="verdict-meta">
+                <div><strong>span.mp4</strong> &bull; {{ total_frames }} frames &bull; {{ fps }} fps</div>
+                <div>Territory: UK-Ofcom &bull; Ofcom 2.12 - screening-grade</div>
+                <div>{{ 1 if not cert.passed else 0 }} violation(s)</div>
+            </div>
+            <div style="margin-left: auto;">
+                <button class="btn primary" onclick="downloadCert()">Download Certificate</button>
+            </div>
+        </div>
+
+        <!-- B. THE TIMELINE -->
+        <div class="timeline-container">
+            <figure class="timeline-figure">
+                <div class="draw-mask" style="width: 100%; height: 100%; overflow: hidden; position: absolute; left: 0; top: 0;">
+                    <svg class="timeline-svg" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" role="img" aria-label="Luminance curve. Verdict: {{ verdict }}. {{ 1 if not cert.passed else 0 }} spans flagged. Measured rate: {{ cert.measured_value }} Hz.">
+                        <polygon class="timeline-curve {% if cert.passed %}pass-curve{% endif %}" points="{{ polygon_points }}"></polygon>
+                        
+                        <!-- Threshold line -->
+                        <line class="threshold-line" x1="0" y1="{{ threshold_y }}" x2="{{ width }}" y2="{{ threshold_y }}"></line>
+                        
+                        <!-- Violation band -->
+                        {% if not cert.passed %}
+                        <a href="#card-1">
+                            <rect class="violation-band" x="{{ span_x }}" y="0" width="{{ span_width }}" height="{{ height }}">
+                                <title>Frames {{ cert.frame_start }}-{{ cert.frame_end }} | {{ cert.measured_value }} Hz</title>
+                            </rect>
+                        </a>
+                        {% endif %}
+                    </svg>
+                </div>
+                {% if cert.passed %}
+                <div style="position: absolute; top: 10px; left: 10px; color: var(--pass); font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 6px;">
+                    0 spans flagged - control passed
+                </div>
+                {% endif %}
+            </figure>
+            <div class="timeline-axes">
+                <span>Frame {{ min_frame }} (0.0s)</span>
+                <span>Frame {{ max_frame }} ({{ "%.1f" | format(max_frame / fps) }}s)</span>
+            </div>
+        </div>
+
+        <!-- C. VIOLATION CARDS -->
+        {% if not cert.passed %}
+        <article id="card-1" class="violation-card" tabindex="-1">
+            <div class="card-header">
+                <div>
+                    <strong>Flagged Span</strong>
+                    <div style="color: var(--text-dim);">Frames {{ cert.frame_start }}-{{ cert.frame_end }} &bull; Timecode {{ "%.2f" | format(cert.frame_start / fps) }}s - {{ "%.2f" | format(cert.frame_end / fps) }}s &bull; Length {{ cert.frame_end - cert.frame_start }} frames</div>
+                </div>
+                <div style="text-align: right;">
+                    <strong style="color: var(--fail);">{{ cert.measured_value }} Hz</strong>
+                </div>
+            </div>
+            
+            <div class="filmstrip" aria-hidden="true">
+                <div class="filmstrip-frame"></div>
+                <div class="filmstrip-frame"></div>
+                <div class="filmstrip-frame"></div>
+                <div class="filmstrip-frame"></div>
+                <div class="filmstrip-frame"></div>
+                <div class="filmstrip-frame"></div>
+            </div>
+            
+            <div class="card-grid">
+                <div>
+                    <h3>Measured</h3>
+                    <ul>
+                        <li>Flash rate: <strong>{{ cert.measured_value }} Hz</strong></li>
+                        <li>Threshold: {{ limit }} Hz</li>
+                        <li>Luma delta: > 20 IRE</li>
+                        <li>Screen area: > 25%</li>
+                    </ul>
+                    <div style="margin-top: 1rem; color: var(--text-dim); font-size: 0.9rem;">
+                        PUBLISHED: thresholds.csv row 1 (UK-Ofcom, 3.0 Hz, 20.0 IRE, 25.0%)
+                    </div>
+                </div>
+                <div class="adjudicated-block">
+                    <h3>Adjudicated</h3>
+                    <blockquote>
+                        <p><strong>Cause:</strong> {{ cert.cause }}</p>
+                        <p><strong>Remediation:</strong> {{ cert.remediation }}</p>
+                    </blockquote>
+                </div>
+            </div>
+            
+            <!-- D. THE SAFETY GATE -->
+            <div style="margin-top: 2rem;">
+                <h3>Review Clip</h3>
+                <div class="reduced-motion-warning">Playback disabled by OS reduced-motion preference. See filmstrip above.</div>
+                
+                <div class="safety-gate" id="safety-gate-1">
+                    <video id="vid-1" src="/media/span.mp4" controlsList="nodownload"></video>
+                    <div class="scrim"></div>
+                    
+                    <div class="confirm-layer" id="layer-1">
+                        <h3>Hazard: Photosensitivity ({{ cert.measured_value }} Hz)</h3>
+                        <p>This clip contains strobing that may trigger seizures in photosensitive viewers.</p>
+                        
+                        <div class="confirm-actions">
+                            <button class="btn primary" id="btn-play-reduced" title="Reduced-brightness playback is for review comfort and is NOT the measured signal.">Play at reduced brightness</button>
+                            <button class="btn" id="btn-play-full">Play as measured</button>
+                            <button class="btn" id="btn-cancel" style="display: none;">Stop</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" id="btn-trigger-play">Play clip (strobing)</button>
+            </div>
+        </article>
+        {% endif %}
+        
+        <!-- E. CERTIFICATE -->
+        <section class="certificate-section">
+            <h2>Certificate Ledger Entry</h2>
+            <p>Row ID: <code>{{ scan_id }}</code></p>
+            <p>Query: <code>SELECT * FROM violations WHERE scan_id = '{{ scan_id }}'</code></p>
+            <pre class="cert-code" id="cert-data">{{ cert | tojson(indent=2) }}</pre>
+        </section>
+
+    </main>
+
+    <script>
+        // Global playback disable
+        const globalDisable = document.getElementById('global-disable-playback');
+        const isGlobalDisabled = localStorage.getItem('flashframe_disable_playback') === 'true';
+        globalDisable.checked = isGlobalDisabled;
+        
+        globalDisable.addEventListener('change', (e) => {
+            localStorage.setItem('flashframe_disable_playback', e.target.checked);
+            applyPlaybackConstraints();
+        });
+        
+        const gate = document.getElementById('safety-gate-1');
+        const triggerBtn = document.getElementById('btn-trigger-play');
+        const vid = document.getElementById('vid-1');
+        const layer = document.getElementById('layer-1');
+        const btnReduced = document.getElementById('btn-play-reduced');
+        const btnFull = document.getElementById('btn-play-full');
+        const btnCancel = document.getElementById('btn-cancel');
+        
+        function applyPlaybackConstraints() {
+            const motionMatch = window.matchMedia('(prefers-reduced-motion: reduce)');
+            const disabled = motionMatch.matches || globalDisable.checked;
+            
+            if (disabled) {
+                if(triggerBtn) triggerBtn.disabled = true;
+                if(btnReduced) btnReduced.disabled = true;
+                if(btnFull) btnFull.disabled = true;
+                if(vid) vid.pause();
+                if(layer) layer.style.display = 'flex';
+                if(btnCancel) btnCancel.style.display = 'none';
+            } else {
+                if(triggerBtn) triggerBtn.disabled = false;
+                if(btnReduced) btnReduced.disabled = false;
+                if(btnFull) btnFull.disabled = false;
+            }
+        }
+        
+        window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', applyPlaybackConstraints);
+        applyPlaybackConstraints();
+        
+        if (triggerBtn) {
+            triggerBtn.addEventListener('click', () => {
+                gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                layer.style.display = 'flex';
+                btnReduced.style.display = 'block';
+                btnFull.style.display = 'block';
+                btnCancel.style.display = 'none';
+                btnReduced.focus(); // Pre-focused action
+                triggerBtn.style.display = 'none';
+            });
+            
+            btnReduced.addEventListener('click', () => {
+                layer.style.display = 'none';
+                vid.classList.add('reduced-playback');
+                vid.play();
+                btnCancel.style.display = 'block';
+                layer.style.display = 'flex';
+                layer.style.background = 'transparent';
+                btnReduced.style.display = 'none';
+                btnFull.style.display = 'none';
+            });
+            
+            btnFull.addEventListener('click', () => {
+                layer.style.display = 'none';
+                vid.classList.remove('reduced-playback');
+                vid.play();
+                btnCancel.style.display = 'block';
+                layer.style.display = 'flex';
+                layer.style.background = 'transparent';
+                btnReduced.style.display = 'none';
+                btnFull.style.display = 'none';
+            });
+            
+            btnCancel.addEventListener('click', () => {
+                vid.pause();
+                vid.currentTime = 0;
+                layer.style.display = 'none';
+                triggerBtn.style.display = 'block';
+                layer.style.background = 'rgba(0,0,0,0.85)';
+            });
+            
+            vid.addEventListener('ended', () => {
+                btnCancel.click(); // Stop, never loop
+            });
+            
+            // Prevent arbitrary play without going through safety gate
+            vid.addEventListener('play', (e) => {
+                if (layer.style.display !== 'flex' && layer.style.background === 'transparent') {
+                    // Being played via native controls (which are hidden anyway but just in case)
+                }
+            });
+            // Hide native controls to enforce gate
+            vid.controls = false;
+        }
+        
+        function downloadCert() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(document.getElementById('cert-data').innerText);
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "certificate.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+    </script>
+</body>
+</html>
