@@ -1,18 +1,21 @@
-from fastapi import FastAPI, Request, File, UploadFile, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import json
 import csv
 import pandas as pd
 import uuid
-
 from contextlib import asynccontextmanager
 import asyncio
 import os
+from fastapi import FastAPI, Request, File, UploadFile, Form, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from mcp.client.stdio import StdioServerParameters
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from dotenv import load_dotenv
+import sys
+from src.flashframe.cli import run_pipeline
+
+scan_status_dict = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,7 +28,7 @@ async def lifespan(app: FastAPI):
         "CLICKHOUSE_DATABASE": os.environ.get("CLICKHOUSE_DATABASE", "flashframe"),
     })
     
-    mcp_python = os.path.join(os.path.dirname(__file__), ".venv", "bin", "python3")
+    mcp_python = sys.executable
     
     clickhouse = McpToolset(
         connection_params=StdioConnectionParams(
@@ -39,7 +42,6 @@ async def lifespan(app: FastAPI):
     try:
         tools = await clickhouse.get_tools()
         run_query_tool = next(t for t in tools if t.name == "run_query")
-        # Warm-up query
         asyncio.create_task(run_query_tool.run_async(args={"query": "SELECT 1"}, tool_context=None))
     except Exception as e:
         print("Warmup query failed:", e)
@@ -57,9 +59,34 @@ templates = Jinja2Templates(directory="templates")
 async def read_index(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
+async def run_actual_pipeline(scan_id, video_path):
+    try:
+        await run_pipeline(video_path)
+        scan_status_dict[scan_id]["status"] = "complete"
+        for s in scan_status_dict[scan_id]["stages"]:
+            s["status"] = "done"
+    except Exception as e:
+        err_str = str(e)
+        if "429" in err_str or "quota" in err_str.lower() or "rate limit" in err_str.lower() or "ResourceExhausted" in err_str:
+            err_str = "Gemini API rate limit exceeded (free tier quota). A judge may have hit the 5 req/min or 20 req/day limit. Please wait a bit and try again."
+        scan_status_dict[scan_id]["status"] = "error"
+        scan_status_dict[scan_id]["error_message"] = err_str
+
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(None), seed_clip: str = Form(None)):
-    scan_id = "85847671-b150-4ff4-9bde-f13995bbe7a3"
+async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(None), seed_clip: str = Form(None)):
+    scan_id = str(uuid.uuid4())
+    scan_status_dict[scan_id] = {
+        "status": "running",
+        "stages": [
+            {"name": "Extract", "status": "pending"},
+            {"name": "Ingest", "status": "pending"},
+            {"name": "Detect", "status": "pending"},
+            {"name": "Adjudicate", "status": "pending"},
+            {"name": "Certify", "status": "pending"}
+        ]
+    }
+    video_path = f"assets/{seed_clip}.mp4" if seed_clip else "test_clip.mp4"
+    background_tasks.add_task(run_actual_pipeline, scan_id, video_path)
     return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 
 @app.get("/scan/{scan_id}", response_class=HTMLResponse)
@@ -68,16 +95,11 @@ async def scan_progress(request: Request, scan_id: str):
 
 @app.get("/api/scan/{scan_id}/status")
 async def scan_status(scan_id: str):
-    return JSONResponse({
-        "status": "complete",
-        "stages": [
-            {"name": "Extract", "status": "done"},
-            {"name": "Ingest", "status": "done"},
-            {"name": "Detect", "status": "done"},
-            {"name": "Adjudicate", "status": "done"},
-            {"name": "Certify", "status": "done"}
-        ]
-    })
+    return JSONResponse(scan_status_dict.get(scan_id, {
+        "status": "error",
+        "error_message": "Scan not found",
+        "stages": []
+    }))
 
 @app.get("/report/{scan_id}", response_class=HTMLResponse)
 async def report(request: Request, scan_id: str):
