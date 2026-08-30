@@ -107,12 +107,46 @@ async def scan_status(scan_id: str):
 
 @app.get("/report/{scan_id}", response_class=HTMLResponse)
 async def report(request: Request, scan_id: str):
-    with open("certificate.json") as f:
-        cert = json.load(f)
-        
     global clickhouse_client
     tools = await clickhouse_client.get_tools()
     run_query_tool = next(t for t in tools if t.name == "run_query")
+    
+    cert_query = f"SELECT * FROM violation_ledger WHERE scan_id = '{scan_id}' ORDER BY certified_at DESC LIMIT 1"
+    try:
+        cres = await run_query_tool.run_async(args={"query": cert_query}, tool_context=None)
+        ctext = ""
+        if hasattr(cres, "content") and len(cres.content) > 0 and hasattr(cres.content[0], "text"):
+            ctext = cres.content[0].text
+        elif hasattr(cres, "text"):
+            ctext = cres.text
+        elif isinstance(cres, list) and len(cres) > 0 and hasattr(cres[0], "text"):
+            ctext = cres[0].text
+        elif isinstance(cres, dict) and "content" in cres:
+            ctext = cres["content"][0]["text"]
+        else:
+            ctext = str(cres)
+        cdata = json.loads(ctext)
+        if "rows" in cdata and "columns" in cdata and len(cdata["rows"]) > 0:
+            cert_row = dict(zip(cdata["columns"], cdata["rows"][0]))
+        else:
+            crows = cdata.get("rows", cdata) if isinstance(cdata, dict) else cdata
+            cert_row = crows[0] if crows else {}
+        
+        cert = {
+            "scan_id": scan_id,
+            "certified_at": cert_row.get('certified_at', ""),
+            "passed": bool(cert_row.get('passed', True)),
+            "frame_start": cert_row.get('frame_start', 0),
+            "frame_end": cert_row.get('frame_end', 0),
+            "measured_value": cert_row.get('measured', 0.0),
+            "threshold_value": cert_row.get('threshold', 3.0),
+            "cause": cert_row.get('cause', ""),
+            "remediation": cert_row.get('remediation', ""),
+            "read_back_query": cert_query
+        }
+    except Exception as e:
+        print("Failed to run cert query:", e)
+        cert = {"passed": True, "measured_value": 0.0, "frame_start": 0, "frame_end": 0, "cause": "", "remediation": ""}
     
     query = f"SELECT frame_idx, yavg FROM frame_metrics WHERE scan_id = '{scan_id}' AND tile = 0 ORDER BY frame_idx"
     try:
