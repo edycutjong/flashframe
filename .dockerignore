@@ -3,6 +3,8 @@
 __pycache__
 *.mp4
 !assets/*.mp4
-.env
-clickhouse.env
+*.env
+.env*
 credentials.json
+bench_feature.mp4
+control_feature.mp4
