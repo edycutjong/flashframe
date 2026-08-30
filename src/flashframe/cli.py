@@ -26,9 +26,62 @@ def cli():
 @click.option('--feature', is_flag=True)
 def seed(feature):
     import subprocess
+    import random
+    import json
     if feature:
-        # Generate feature clip
-        pass
+        click.echo("Generating feature-length benchmark clip...")
+        
+        total_duration = 5529.6
+        strobe_duration = 0.88
+        base_duration = total_duration - strobe_duration
+        
+        # Pick a random frame offset for the strobe
+        strobe_frame = random.randint(0, int(base_duration * 25))
+        seg_a_duration = strobe_frame / 25.0
+        seg_c_duration = base_duration - seg_a_duration
+        
+        manifest = {
+            "strobe_start_frame": strobe_frame,
+            "strobe_start_time": seg_a_duration,
+            "strobe_duration_frames": int(strobe_duration * 25)
+        }
+        
+        with open("manifest.json", "w") as f:
+            json.dump(manifest, f)
+            
+        click.echo(f"Chosen offset: {seg_a_duration}s (frame {strobe_frame}). Wrote manifest.json")
+        
+        # Write ffmpeg script
+        script = f"""#!/usr/bin/env bash
+set -e
+ffmpeg -y -f lavfi -i "color=c=black:s=1280x720:r=25:d={seg_a_duration}" \\
+  -vf "geq=lum='60+120*(0.5+0.5*sin(2*PI*0.5*T))':cb=128:cr=128" \\
+  -c:v libx264 -preset veryslow -crf 12 -pix_fmt yuv420p \\
+  -x264-params keyint=25:scenecut=0 seg_a.mp4
+
+ffmpeg -y -f lavfi -i "color=c=black:s=1280x720:r=25:d={strobe_duration}" \\
+  -vf "geq=lum='if(lt(mod(floor(T*25),4),2),40,200)':cb=128:cr=128" \\
+  -c:v libx264 -preset veryslow -crf 12 -pix_fmt yuv420p seg_b.mp4
+
+ffmpeg -y -f lavfi -i "color=c=black:s=1280x720:r=25:d={seg_c_duration}" \\
+  -vf "geq=lum='60+120*(0.5+0.5*sin(2*PI*0.5*T))':cb=128:cr=128" \\
+  -c:v libx264 -preset veryslow -crf 12 -pix_fmt yuv420p seg_c.mp4
+
+cat <<EOF > segments.txt
+file 'seg_a.mp4'
+file 'seg_b.mp4'
+file 'seg_c.mp4'
+EOF
+
+ffmpeg -y -f concat -safe 0 -i segments.txt -c copy bench_feature.mp4
+rm seg_a.mp4 seg_b.mp4 seg_c.mp4 segments.txt
+"""
+        with open("generate_feature.sh", "w") as f:
+            f.write(script)
+            
+        subprocess.run(["bash", "generate_feature.sh"], check=True)
+        click.echo("Feature clip generated: bench_feature.mp4")
+
     else:
         click.echo("Running seed clip generation...")
         script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "generate_seed_clips.sh")

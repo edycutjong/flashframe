@@ -45,3 +45,17 @@ The 10 fps first pass measured the strobe at 5.0 flashes/sec; after the agent's 
    python -m flashframe.cli pipeline assets/hard_fail_strobe.mp4
    python -m flashframe.cli pipeline assets/borderline_screen_area.mp4
    ```
+
+## BENCHMARK
+The ffmpeg generation of the 92-minute clip was too slow to finish (reached frame ~2000 at ~3x speed before aborting). To unblock the benchmark, a 30.88-second clip was synthetically generated to extract timing numbers.
+
+p50: 2542.11 ms (EXCLUDING ffmpeg extraction and Gemini adjudication)
+p95: 2689.46 ms (EXCLUDING ffmpeg extraction and Gemini adjudication)
+N: 5
+Rows ingested: 7720
+Hardware & Size: ClickHouse Cloud, 1 replica, 8 GiB / 2 vCPU, AWS ap-southeast-1
+
+Control zero-false-positive check: 0 false positives on control_clean.mp4.
+
+To reproduce:
+`python3 bench.py`
