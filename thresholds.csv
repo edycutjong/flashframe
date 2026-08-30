@@ -1,0 +1,4 @@
+territory,criterion,max_flashes_sec,min_luma_delta,screen_area_pct,citation
+UK-Ofcom,flash_rate,3.0,20.0,25.0,Ofcom Rule 2.12
+ITU-R-BT1702,flash_rate,3.0,20.0,25.0,ITU-R BT.1702
+JP-NAB,flash_rate,3.0,20.0,25.0,NAB Japan Guidelines
