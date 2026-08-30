@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload - Flashframe</title>
+    <title>Flashframe - Photosensitivity Screening</title>
+    <meta name="description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702 published criteria.">
+    <meta name="author" content="Edy">
+    <meta property="og:title" content="Flashframe - Photosensitivity Screening">
+    <meta property="og:description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702.">
+    <meta property="og:url" content="https://flashframe.example.com/">
+    <meta property="og:site_name" content="Flashframe">
+    <meta property="og:image" content="https://flashframe.example.com/static/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,21 +20,27 @@
         <h1>Flashframe</h1>
     </header>
     <main class="container">
-        <h2>Upload Video for Scanning</h2>
-        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
-            <div class="drop-zone">
-                <label for="file-upload">Drag/drop or click to select video</label>
-                <input type="file" id="file-upload" name="file" accept="video/mp4,video/x-m4v,video/*">
-            </div>
-            <button type="submit" class="btn primary">Scan</button>
-        </form>
-
+        <h2>Screen a cut for photosensitivity violations.</h2>
+        <p style="color: var(--text-mid); font-size: 1.2rem; margin-bottom: 2rem;">Ofcom 2.12 &middot; ITU-R BT.1702 &middot; NAB Japan &middot; screening-grade, not a certified lab pass.</p>
+        
         <section class="seed-clips">
-            <h3>Or use seed clips for demo:</h3>
-            <form action="/upload" method="post">
-                <button type="submit" name="seed_clip" value="control_clean" class="btn">Demo: Control Clean</button>
-                <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn">Demo: Hard Fail Strobe</button>
-                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Demo: Borderline Screen Area</button>
+            <h3>Try a synthetic test clip</h3>
+            <p style="color: var(--text-mid); margin-bottom: 1.5rem;">Measurement against a published line, resolved to an exact frame span. No upload required.</p>
+            <form action="/upload" method="post" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn primary">Strobe Violation (Fail)</button>
+                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Borderline Area (Fail)</button>
+                <button type="submit" name="seed_clip" value="control_clean" class="btn">Control Clip (Pass)</button>
+            </form>
+        </section>
+
+        <section style="margin-top: 3rem;">
+            <h3>Or upload a video</h3>
+            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+                <div class="drop-zone">
+                    <label for="file-upload">Drag/drop or click to select video</label>
+                    <input type="file" id="file-upload" name="file" accept="video/mp4,video/x-m4v,video/*">
+                </div>
+                <button type="submit" class="btn">Scan</button>
             </form>
         </section>
     </main>

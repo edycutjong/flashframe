@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 import asyncio
 import os
 from fastapi import FastAPI, Request, File, UploadFile, Form, BackgroundTasks
+from fastapi import HTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -60,7 +62,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/media", StaticFiles(directory="."), name="media")
 
+
 templates = Jinja2Templates(directory="templates")
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        return templates.TemplateResponse(request, "404.html", {"message": "This page or scan no longer exists."}, status_code=404)
+    return HTMLResponse(content=str(exc.detail), status_code=exc.status_code)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
@@ -134,6 +144,9 @@ async def report(request: Request, scan_id: str):
         else:
             crows = cdata.get("rows", cdata) if isinstance(cdata, dict) else cdata
             cert_row = crows[0] if crows else {}
+        
+        if not cert_row:
+            raise HTTPException(status_code=404, detail="Scan not found")
         
         cert = {
             "scan_id": scan_id,
