@@ -1,0 +1,141 @@
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/features/_feature_decorator.py:71: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
+  check_feature_enabled()
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/tools/mcp_tool/mcp_toolset.py:400: UserWarning: [EXPERIMENTAL] feature FeatureName._MCP_GRACEFUL_ERROR_HANDLING is enabled.
+  session = await self._mcp_session_manager.create_session(
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/fastmcp/server/auth/providers/jwt.py:10: AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
+It will be compatible before version 2.0.0.
+  from authlib.jose import JsonWebKey, JsonWebToken
+2026-08-30 07:15:41,507 - mcp-clickhouse - INFO - ClickHouse tools registered
+2026-08-30 07:15:41,508 - mcp-clickhouse - INFO - Creating chDB client with data_path=:memory:
+2026-08-30 07:15:41,723 - mcp-clickhouse - INFO - Successfully connected to chDB with data_path=:memory:
+2026-08-30 07:15:41,724 - mcp-clickhouse - INFO - chDB tools and prompts registered
+
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                                                                              │
+│                         ▄▀▀ ▄▀█ █▀▀ ▀█▀ █▀▄▀█ █▀▀ █▀█                        │
+│                         █▀  █▀█ ▄▄█  █  █ ▀ █ █▄▄ █▀▀                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                FastMCP 2.14.7                                │
+│                            https://gofastmcp.com                             │
+│                                                                              │
+│                    🖥  Server:      mcp-clickhouse                            │
+│                    🚀 Deploy free: https://fastmcp.cloud                     │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                          ✨ FastMCP 3.0 is coming!                           │
+│       Pin `fastmcp < 3` in production, then upgrade when you're ready.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                          🎉 Update available: 3.4.7                          │
+│                      Run: pip install --upgrade fastmcp                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+[08/30/26 07:15:41] INFO     Starting MCP server 'mcp-clickhouse' server.py:2506
+                             with transport 'stdio'                             
+2026-08-30 07:15:41,744 - docket.worker - INFO - Starting worker 'MacBook-Pro-5.local#74050' with the following tasks:
+2026-08-30 07:15:41,744 - docket.worker - INFO - * trace(message: str, ...)
+2026-08-30 07:15:41,744 - docket.worker - INFO - * fail(message: str, ...)
+2026-08-30 07:15:41,744 - docket.worker - INFO - * sleep(seconds: float, ...)
+2026-08-30 07:15:41,748 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/features/_feature_decorator.py:71: UserWarning: [EXPERIMENTAL] feature FeatureName.BASE_AUTHENTICATED_TOOL is enabled.
+  check_feature_enabled()
+2026-08-30 07:15:41,749 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-08-30 07:15:41,749 - mcp-clickhouse - INFO - Executing query: INSERT INTO threshold_reference VALUES ('UK-Ofcom', 'red_saturation', 0.0, 0.0, 25.0, 'Ofcom Rule 2.12')
+2026-08-30 07:15:41,750 - mcp-clickhouse - INFO - Creating ClickHouse client connection to rygn0wp7lv.ap-southeast-1.aws.clickhouse.cloud:8443 as default (secure=True, verify=True, connect_timeout=30s, send_receive_timeout=300s)
+2026-08-30 07:15:41,914 - mcp-clickhouse - INFO - Successfully connected to ClickHouse server version 26.2.1.558
+2026-08-30 07:15:41,914 - mcp-clickhouse - INFO - Write mode enabled (CLICKHOUSE_ALLOW_WRITE_ACCESS=true)
+2026-08-30 07:15:41,996 - mcp-clickhouse - INFO - Query returned 0 rows
+2026-08-30 07:15:42,002 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-08-30 07:15:42,002 - mcp-clickhouse - INFO - Executing query: 
+WITH
+    (SELECT max(scan_id) FROM frame_metrics) AS current_scan,
+    (SELECT min_luma_delta FROM threshold_reference WHERE territory = 'UK-Ofcom' AND criterion = 'flash_rate' LIMIT 1) AS t_min_delta,
+    (SELECT max_flashes_sec FROM threshold_reference WHERE territory = 'UK-Ofcom' AND criterion = 'flash_rate' LIMIT 1) AS t_max_flashes,
+    (SELECT 0.8) AS t_red_thresh,
+    framewise AS (
+        SELECT frame_idx, pts_time, yavg, red_ratio,
+               yavg - lagInFrame(yavg) OVER (ORDER BY frame_idx)              AS d_luma,
+               sign(yavg - lagInFrame(yavg) OVER (ORDER BY frame_idx))        AS dir
+        FROM frame_metrics WHERE scan_id = current_scan AND tile = 0
+    ),
+    transitions AS (
+        SELECT *, dir != lagInFrame(dir) OVER (ORDER BY frame_idx) AS opposing
+        FROM framewise
+    )
+SELECT min(frame_idx) AS frame_start, max(frame_idx) AS frame_end,
+       countIf(opposing AND abs(d_luma) >= t_min_delta) AS flashes,
+       max(red_ratio) AS peak_red
+FROM transitions
+GROUP BY toUInt32(pts_time)
+HAVING flashes > t_max_flashes OR peak_red > t_red_thresh
+ORDER BY frame_start
+
+2026-08-30 07:15:42,002 - mcp-clickhouse - INFO - Creating ClickHouse client connection to rygn0wp7lv.ap-southeast-1.aws.clickhouse.cloud:8443 as default (secure=True, verify=True, connect_timeout=30s, send_receive_timeout=300s)
+2026-08-30 07:15:42,082 - mcp-clickhouse - INFO - Successfully connected to ClickHouse server version 26.2.1.558
+2026-08-30 07:15:42,083 - mcp-clickhouse - INFO - Write mode enabled (CLICKHOUSE_ALLOW_WRITE_ACCESS=true)
+2026-08-30 07:15:42,120 - mcp-clickhouse - INFO - Query returned 2 rows
+2026-08-30 07:15:42,127 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-08-30 07:15:42,127 - mcp-clickhouse - INFO - Executing query: 
+INSERT INTO violation_ledger
+SELECT
+    (SELECT max(scan_id) FROM frame_metrics) AS scan_id,
+    now() AS certified_at,
+    'UK-Ofcom' AS territory,
+    0 AS passed,
+    739 AS frame_start,
+    760 AS frame_end,
+    6.25 AS measured,
+    3.0 AS threshold,
+    'Flashes detected' AS cause,
+    'Trim frames' AS remediation
+
+2026-08-30 07:15:42,127 - mcp-clickhouse - INFO - Creating ClickHouse client connection to rygn0wp7lv.ap-southeast-1.aws.clickhouse.cloud:8443 as default (secure=True, verify=True, connect_timeout=30s, send_receive_timeout=300s)
+2026-08-30 07:15:42,206 - mcp-clickhouse - INFO - Successfully connected to ClickHouse server version 26.2.1.558
+2026-08-30 07:15:42,206 - mcp-clickhouse - INFO - Write mode enabled (CLICKHOUSE_ALLOW_WRITE_ACCESS=true)
+2026-08-30 07:15:42,285 - mcp-clickhouse - INFO - Query returned 0 rows
+2026-08-30 07:15:42,296 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-08-30 07:15:42,296 - mcp-clickhouse - INFO - Executing query: SELECT * FROM violation_ledger
+2026-08-30 07:15:42,296 - mcp-clickhouse - INFO - Creating ClickHouse client connection to rygn0wp7lv.ap-southeast-1.aws.clickhouse.cloud:8443 as default (secure=True, verify=True, connect_timeout=30s, send_receive_timeout=300s)
+2026-08-30 07:15:42,384 - mcp-clickhouse - INFO - Successfully connected to ClickHouse server version 26.2.1.558
+2026-08-30 07:15:42,384 - mcp-clickhouse - INFO - Write mode enabled (CLICKHOUSE_ALLOW_WRITE_ACCESS=true)
+2026-08-30 07:15:42,414 - mcp-clickhouse - INFO - Query returned 2 rows
+2026-08-30 07:15:42,422 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-08-30 07:15:42,423 - mcp-clickhouse - INFO - Executing chDB SELECT query: 
+SELECT f.scan_id, count(*) AS count
+FROM file('/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/frame_metrics.csv', 'CSVWithNames') f
+CROSS JOIN file('/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/thresholds.csv', 'CSVWithNames') t
+WHERE t.territory = 'UK-Ofcom' AND t.criterion = 'flash_rate'
+GROUP BY f.scan_id
+
+Proof 4: Detection SQL and Write-back
+Executing: INSERT INTO threshold_reference VALUES ('UK-Ofcom', 'red_saturation', 0.0, 0.0, 25.0, 'Ofcom Rule 2.12')...
+Executing: 
+WITH
+    (SELECT max(scan_id) FROM frame_metrics) AS current_scan,
+    (SELECT min_luma_delta FROM threshold_reference WHERE territory = 'UK-Ofcom' A...
+
+Flagged spans:
+{'content': [{'type': 'text', 'text': '{"columns": ["frame_start", "frame_end", "flashes", "peak_red"], "rows": [[725, 749, 6, 0.501960813999176], [750, 774, 6, 0.501960813999176]]}'}], 'structuredContent': {'result': '{"columns": ["frame_start", "frame_end", "flashes", "peak_red"], "rows": [[725, 749, 6, 0.501960813999176], [750, 774, 6, 0.501960813999176]]}'}, 'isError': False}
+Executing: 
+INSERT INTO violation_ledger
+SELECT
+    (SELECT max(scan_id) FROM frame_metrics) AS scan_id,
+    now() AS certified_at,
+    'UK-Ofcom' AS territory,
+...
+
+Read back ledger:
+Executing: SELECT * FROM violation_ledger...
+{'content': [{'type': 'text', 'text': '{"columns": ["scan_id", "certified_at", "territory", "passed", "frame_start", "frame_end", "measured", "threshold", "cause", "remediation"], "rows": [["0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "2026-08-30 00:15:35", "UK-Ofcom", 0, 739, 760, 6.25, 3.0, "Flashes detected", "Trim frames"], ["0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "2026-08-30 00:15:42", "UK-Ofcom", 0, 739, 760, 6.25, 3.0, "Flashes detected", "Trim frames"]]}'}], 'structuredContent': {'result': '{"columns": ["scan_id", "certified_at", "territory", "passed", "frame_start", "frame_end", "measured", "threshold", "cause", "remediation"], "rows": [["0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "2026-08-30 00:15:35", "UK-Ofcom", 0, 739, 760, 6.25, 3.0, "Flashes detected", "Trim frames"], ["0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "2026-08-30 00:15:42", "UK-Ofcom", 0, 739, 760, 6.25, 3.0, "Flashes detected", "Trim frames"]]}'}, 'isError': False}
+
+chDB Query on raw CSVs:
+Executing: 
+SELECT f.scan_id, count(*) AS count
+FROM file('/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/frame_metrics.csv', 'CSVWithNam...
+{'content': [{'type': 'text', 'text': '[{"scan_id": "0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "count": 15000}]'}], 'structuredContent': {'result': '[{"scan_id": "0e403ae2-2ca4-45be-8270-5b2cddc5d9e7", "count": 15000}]'}, 'isError': False}
