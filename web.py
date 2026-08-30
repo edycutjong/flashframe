@@ -28,10 +28,15 @@ async def lifespan(app: FastAPI):
     global clickhouse_client
     load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
     env = os.environ.copy()
+    
+    missing = [k for k in ["CLICKHOUSE_HOST", "CLICKHOUSE_USER", "CLICKHOUSE_PASSWORD"] if k not in os.environ]
+    if missing:
+        raise RuntimeError(f"Missing required ClickHouse credentials in environment: {', '.join(missing)}")
+        
     env.update({
-        "CLICKHOUSE_HOST": os.environ.get("CLICKHOUSE_HOST", ""),
-        "CLICKHOUSE_USER": os.environ.get("CLICKHOUSE_USER", "default"),
-        "CLICKHOUSE_PASSWORD": os.environ.get("CLICKHOUSE_PASSWORD", ""),
+        "CLICKHOUSE_HOST": os.environ["CLICKHOUSE_HOST"],
+        "CLICKHOUSE_USER": os.environ["CLICKHOUSE_USER"],
+        "CLICKHOUSE_PASSWORD": os.environ["CLICKHOUSE_PASSWORD"],
         "CLICKHOUSE_DATABASE": os.environ.get("CLICKHOUSE_DATABASE", "flashframe"),
     })
     

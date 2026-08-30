@@ -16,10 +16,20 @@ class Verdict(BaseModel):
 
 def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash", api_key=None):
     if not api_key:
-        with open(os.path.expanduser('~/.config/gemini/credentials.json'), 'r') as f:
-            creds = json.load(f)
-            api_key = creds['keys'][1]['key']
-            model = creds.get('model', model)
+        api_key = os.environ.get("GEMINI_API_KEY")
+        env_model = os.environ.get("GEMINI_MODEL")
+        if env_model:
+            model = env_model
+            
+        if not api_key:
+            cred_path = os.path.expanduser('~/.config/gemini/credentials.json')
+            if os.path.exists(cred_path):
+                with open(cred_path, 'r') as f:
+                    creds = json.load(f)
+                    api_key = creds['keys'][1]['key']
+                    model = creds.get('model', model)
+            else:
+                raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
             
     client = genai.Client(api_key=api_key)
     

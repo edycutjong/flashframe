@@ -96,6 +96,11 @@ def pipeline(video_path):
 async def run_pipeline(video_path):
     load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
     env = os.environ.copy()
+    
+    missing = [k for k in ["CLICKHOUSE_HOST", "CLICKHOUSE_USER", "CLICKHOUSE_PASSWORD"] if k not in os.environ]
+    if missing:
+        raise RuntimeError(f"Missing required ClickHouse credentials in environment: {', '.join(missing)}")
+        
     env.update({
         "CLICKHOUSE_HOST": os.environ["CLICKHOUSE_HOST"],
         "CLICKHOUSE_USER": os.environ["CLICKHOUSE_USER"],
@@ -120,11 +125,19 @@ async def run_pipeline(video_path):
     tools = await clickhouse.get_tools()
     run_query_tool = next(t for t in tools if t.name == "run_query")
     
-    with open(os.path.expanduser('~/.config/gemini/credentials.json'), 'r') as f:
-        creds = json.load(f)
-        api_key = creds['keys'][3]['key']
-        model_name = creds.get('model', 'gemini-3.6-flash')
-        
+    api_key = os.environ.get("GEMINI_API_KEY")
+    model_name = os.environ.get("GEMINI_MODEL", 'gemini-3.6-flash')
+    
+    if not api_key:
+        cred_path = os.path.expanduser('~/.config/gemini/credentials.json')
+        if os.path.exists(cred_path):
+            with open(cred_path, 'r') as f:
+                creds = json.load(f)
+                api_key = creds['keys'][3]['key']
+                model_name = creds.get('model', model_name)
+        else:
+            raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
+            
     os.environ["GEMINI_API_KEY"] = api_key
     
     print(f"Extracting {video_path} at 10fps...")
