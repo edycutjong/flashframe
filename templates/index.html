@@ -28,7 +28,7 @@
             <p style="color: var(--text-mid); margin-bottom: 1.5rem;">Measurement against a published line, resolved to an exact frame span. No upload required.</p>
             <form action="/upload" method="post" style="display: flex; gap: 1rem; flex-wrap: wrap;">
                 <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn primary">Strobe Violation (Fail)</button>
-                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Borderline Area (Fail)</button>
+                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Borderline (Pass via resample)</button>
                 <button type="submit" name="seed_clip" value="control_clean" class="btn">Control Clip (Pass)</button>
             </form>
         </section>
