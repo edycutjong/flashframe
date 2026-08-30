@@ -18,7 +18,7 @@ def proof_7():
     with open(os.path.expanduser('~/.config/gemini/credentials.json'), 'r') as f:
         creds = json.load(f)
         api_key = creds['keys'][0]['key']
-        model = creds.get('model', 'gemini-2.5-pro')
+        model = "gemini-3.6-flash"
 
     client = genai.Client(api_key=api_key)
     
