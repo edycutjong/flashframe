@@ -8,9 +8,9 @@
     <meta name="author" content="Edy">
     <meta property="og:title" content="Scan Report - Flashframe">
     <meta property="og:description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702.">
-    <meta property="og:url" content="https://flashframe.example.com/">
+    <meta property="og:url" content="{{ request.url | string | replace('http://', 'https://') }}">
     <meta property="og:site_name" content="Flashframe">
-    <meta property="og:image" content="https://flashframe.example.com/static/og-image.png">
+    <meta property="og:image" content="{{ request.base_url | string | replace('http://', 'https://') }}static/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
