@@ -154,7 +154,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     justify-content: space-between;
     font-family: var(--font-mono);
     font-size: 0.9rem;
-    color: #888;
+    color: var(--text-mid);
     margin-top: 0.5rem;
 }
 
