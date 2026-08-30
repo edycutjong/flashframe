@@ -24,7 +24,7 @@
                 {{ verdict }} <span aria-hidden="true">{{ glyph }}</span>
             </div>
             <div class="verdict-meta">
-                <div><strong>{{ source_file }}</strong> &bull; {{ total_frames }} frames &bull; {{ "%.0f" | format(fps) }} fps</div>
+                <div><strong>{{ source_file }}</strong> &bull; {{ max_frame }} source frames (sampled at {{ "%.0f" | format(measured_fps) }} fps) &bull; {{ "%.0f" | format(fps) }} fps</div>
                 <div>Territory: UK-Ofcom &bull; Ofcom 2.12 - screening-grade</div>
                 <div>{{ 1 if not cert.passed else 0 }} violation(s)</div>
             </div>
@@ -129,18 +129,21 @@
                     <video id="vid-1" src="/media/span.mp4" controlsList="nodownload"></video>
                     <div class="scrim"></div>
                     
-                    <div class="confirm-layer" id="layer-1">
+                    <div id="gate-initial-1" style="position: absolute; inset: 0; background: #000; display: flex; align-items: center; justify-content: center;">
+                        <button class="btn" id="btn-trigger-play">Play clip (strobing)</button>
+                    </div>
+                    
+                    <div class="confirm-layer" id="layer-1" style="display: none;">
                         <h3>Hazard: Photosensitivity ({{ cert.measured_value }} Hz)</h3>
                         <p>This clip contains strobing that may trigger seizures in photosensitive viewers.</p>
                         
                         <div class="confirm-actions">
                             <button class="btn primary" id="btn-play-reduced" title="Reduced-brightness playback is for review comfort and is NOT the measured signal.">Play at reduced brightness</button>
                             <button class="btn" id="btn-play-full">Play as measured</button>
-                            <button class="btn" id="btn-cancel" style="display: none;">Stop</button>
+                            <button class="btn" id="btn-cancel" style="display: none;">Cancel</button>
                         </div>
                     </div>
                 </div>
-                <button class="btn" id="btn-trigger-play">Play clip (strobing)</button>
             </div>
         </article>
         {% endif %}
@@ -183,27 +186,38 @@
                 if(btnReduced) btnReduced.disabled = true;
                 if(btnFull) btnFull.disabled = true;
                 if(vid) vid.pause();
+                if(gateInitial) gateInitial.style.display = 'none';
                 if(layer) layer.style.display = 'flex';
+                if(layer) layer.style.background = 'rgba(0,0,0,0.85)';
                 if(btnCancel) btnCancel.style.display = 'none';
+                if(btnReduced) btnReduced.style.display = 'none';
+                if(btnFull) btnFull.style.display = 'none';
             } else {
                 if(triggerBtn) triggerBtn.disabled = false;
                 if(btnReduced) btnReduced.disabled = false;
                 if(btnFull) btnFull.disabled = false;
+                // If we disabled playback globally and re-enabled it, reset to initial state
+                if(vid && vid.paused && gateInitial && gateInitial.style.display === 'none' && (!btnCancel || btnCancel.style.display === 'none')) {
+                    if(gateInitial) gateInitial.style.display = 'flex';
+                    if(layer) layer.style.display = 'none';
+                }
             }
         }
         
         window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', applyPlaybackConstraints);
         applyPlaybackConstraints();
         
+        const gateInitial = document.getElementById('gate-initial-1');
         if (triggerBtn) {
             triggerBtn.addEventListener('click', () => {
                 gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 layer.style.display = 'flex';
+                layer.style.background = 'rgba(0,0,0,0.85)';
                 btnReduced.style.display = 'block';
                 btnFull.style.display = 'block';
-                btnCancel.style.display = 'none';
+                btnCancel.style.display = 'block';
+                gateInitial.style.display = 'none';
                 btnReduced.focus(); // Pre-focused action
-                triggerBtn.style.display = 'none';
             });
             
             btnReduced.addEventListener('click', () => {
@@ -232,8 +246,7 @@
                 vid.pause();
                 vid.currentTime = 0;
                 layer.style.display = 'none';
-                triggerBtn.style.display = 'block';
-                layer.style.background = 'rgba(0,0,0,0.85)';
+                gateInitial.style.display = 'flex';
             });
             
             vid.addEventListener('ended', () => {

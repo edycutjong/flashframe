@@ -2,6 +2,9 @@ import json
 import csv
 import pandas as pd
 import uuid
+import tempfile
+import subprocess
+import base64
 from contextlib import asynccontextmanager
 import asyncio
 import os
@@ -194,11 +197,61 @@ async def report(request: Request, scan_id: str):
         print("Failed to run meta query:", e)
         meta_row = {}
         
+
     source_file = meta_row.get("source_file", "hard_fail_strobe.mp4")
     if source_file == 'unknown':
         source_file = "hard_fail_strobe.mp4"
+        
+    actual_source_file = source_file
+    if not os.path.exists(actual_source_file) and os.path.exists(f"assets/{source_file}"):
+        actual_source_file = f"assets/{source_file}"
+    elif not os.path.exists(actual_source_file):
+        actual_source_file = "test_clip.mp4"
+        
+    filmstrip_data = []
+    if not cert['passed'] and cert['frame_end'] > cert['frame_start']:
+        n_frames = 7
+        start = int(cert['frame_start'])
+        end = int(cert['frame_end'])
+        step = max(1, (end - start) // (n_frames - 1))
+        indices = [start + i * step for i in range(n_frames)]
+        if indices[-1] > end:
+            indices[-1] = end
+            
+        select_expr = "+".join(f"eq(n\,{idx})" for idx in indices)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cmd = [
+                "ffmpeg", "-y", "-i", actual_source_file,
+                "-vf", f"select='{select_expr}'",
+                "-vsync", "0",
+                os.path.join(tmpdir, "frame_%d.jpg")
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for i in range(1, n_frames + 1):
+                fpath = os.path.join(tmpdir, f"frame_{i}.jpg")
+                if os.path.exists(fpath):
+                    with open(fpath, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode("utf-8")
+                        filmstrip_data.append(f"data:image/jpeg;base64,{b64}")
+
     source_fps = float(meta_row.get("source_fps", 25.0))
-    measured_fps = float(meta_row.get("measured_fps", 60.0))
+
+
+    # Infer fps and frame counts for older scans without metadata
+    if df.empty or 'frame_idx' not in df.columns:
+        inferred_measured_fps = 60.0
+    else:
+        m_frame = df['frame_idx'].max()
+        if m_frame > 0:
+            inferred_measured_fps = round(len(df) / (m_frame / source_fps))
+        else:
+            inferred_measured_fps = 10.0
+
+    if 'measured_fps' in meta_row:
+        measured_fps = float(meta_row['measured_fps'])
+    else:
+        measured_fps = float(inferred_measured_fps)
+
 
     df = pd.DataFrame(rows)
     if not df.empty and 'frame_idx' not in df.columns:
@@ -277,5 +330,6 @@ async def report(request: Request, scan_id: str):
         "source_file": os.path.basename(source_file),
         "min_frame": min_frame,
         "max_frame": max_frame,
-        "no_data": no_data
+        "no_data": no_data,
+        "filmstrip_data": filmstrip_data
     })
