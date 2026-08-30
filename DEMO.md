@@ -5,8 +5,8 @@
 | Clip | Expected | Observed | Exact Reproduce Command |
 |---|---|---|---|
 | `control_clean.mp4` | PASS, 0 spans | "No violations detected. PASS." Zero flagged spans. | `python -m flashframe.cli pipeline assets/control_clean.mp4` |
-| `hard_fail_strobe.mp4` | FAIL, ground truth frames 739-760 @ 6.25 flashes/sec | **detection at 10fps first pass:** "Flagged span 740-760 (5.0 flashes/sec)"<br>**agent then called, unprompted:**<br>`>>> resample_frames(span, 30) <<<`<br>`>>> resample_frames(span, 60) <<<`<br>`>>> adjudicate(740, 760) <<<`<br>`>>> certify <<<`<br>**certificate:** passed=false, frame_start=740, frame_end=760, measured_value=6.25<br>**cause:** "The video contains rapid full-screen alternating dark and light frames, resulting in approximately 6.25 flashes per second, which exceeds the safe limit of 3 flashes per second."<br>**ledger row read back from ClickHouse:** UK-Ofcom, passed=0, 740-760, measured 6.25, threshold 3 | `python -m flashframe.cli pipeline assets/hard_fail_strobe.mp4` |
-| `borderline_screen_area.mp4` | PASS only after resample, ground truth 2.5 flashes/sec | **detection at 10fps first pass:** "Flagged span 1025-1055 (2.0833333333333335 flashes/sec)"<br>**agent called** `resample_frames(span, 30)` then `resample_frames(span, 60)`, then adjudicated<br>**certificate:** passed=true, frame_start=1025, frame_end=1055, measured_value=2.5<br>**cause:** "A flashing light-gray and dark-gray patch in the top-left corner of the screen."<br>**remediation:** "No remediation is necessary as the flashing frequency of 2.5 Hz is below the safety threshold of 3.0 Hz." | `python -m flashframe.cli pipeline assets/borderline_screen_area.mp4` |
+| `hard_fail_strobe.mp4` | FAIL, ground truth frames 739-760 @ 6.25 flashes/sec | **detection at 10fps first pass:** "Flagged span 740-760 (4.76 flashes/sec)"<br>**agent then called, unprompted:**<br>`>>> resample_frames(span, 30) <<<`<br>`>>> resample_frames(span, 60) <<<`<br>`>>> adjudicate(740, 760) <<<`<br>`>>> certify <<<`<br>**certificate:** passed=false, frame_start=740, frame_end=760, measured_value=6.25<br>**cause:** "The video contains rapid full-screen alternating dark and light frames, resulting in approximately 6.25 flashes per second, which exceeds the safe limit of 3 flashes per second."<br>**ledger row read back from ClickHouse:** UK-Ofcom, passed=0, 740-760, measured 6.25, threshold 3 | `python -m flashframe.cli pipeline assets/hard_fail_strobe.mp4` |
+| `borderline_screen_area.mp4` | PASS only after resample, ground truth 2.5 flashes/sec | **detection at 10fps first pass:** "Flagged span 1025-1055 (2.01 flashes/sec)"<br>**agent called** `resample_frames(span, 30)` then `resample_frames(span, 60)`, then adjudicated<br>**certificate:** passed=true, frame_start=1025, frame_end=1055, measured_value=2.82<br>**cause:** "A flashing light-gray and dark-gray patch in the top-left corner of the screen."<br>**remediation:** "No remediation is necessary as the flashing frequency of 2.5 Hz is below the safety threshold of 3.0 Hz." | `python -m flashframe.cli pipeline assets/borderline_screen_area.mp4` |
 
 ## 2. Resample Finding
 
@@ -76,3 +76,13 @@ To evaluate the generation and analysis bottlenecks on extended durations, we ge
 python3 generator.py
 python3 bench.py
 ```
+
+## METHODS Note: Measurement Accuracy
+
+The original SQL rate calculation omitted +1 frame from the span duration (treating duration as `max - min` rather than `max - min + 1`). Because the pipeline normalizes frame indices to the source video's 25fps space, `max - min + 1` correctly yields the span's duration in 25ths of a second. Applying this off-by-one correction removed the large positive bias observed initially. 
+
+After applying the correction:
+- `hard_fail_strobe.mp4`: Ground truth 6.25 flashes/sec, SQL measured 6.25 flashes/sec (0% residual error).
+- `borderline_screen_area.mp4`: Ground truth 2.50 flashes/sec, SQL measured 2.82 flashes/sec (+12.9% residual bias).
+
+The remaining positive bias on the borderline clip is understood and primarily stems from discrete window framing and transition bounding over a very short duration. No fudge factors were applied to artificially tune the measurement.

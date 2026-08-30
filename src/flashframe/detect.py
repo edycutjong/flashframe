@@ -42,9 +42,11 @@ WITH
         JOIN violating_windows vw ON t.tile = vw.tile AND t.frame_idx BETWEEN vw.window_end_idx - 24 AND vw.window_end_idx
         WHERE t.is_flash = 1
     ),
+    -- Rate = flashes / duration. A flash is a pair of opposing luminance transitions, so count(DISTINCT frame_idx)/2.0.
+    -- The duration of the span in frames is (max - min + 1). Since frame_idx is normalized to 25fps in extract.py, we divide by 25.0.
     merged_spans AS (
         SELECT min(frame_idx) AS frame_start, max(frame_idx) AS frame_end, tile,
-               (count(DISTINCT frame_idx) / 2.0) / (greatest((max(frame_idx) - min(frame_idx)) / 25.0, 1.0/25.0)) AS measured_rate,
+               (count(DISTINCT frame_idx) / 2.0) / (greatest((max(frame_idx) - min(frame_idx) + 1) / 25.0, 1.0/25.0)) AS measured_rate,
                max(red_ratio) AS peak_red
         FROM violating_flashes
         GROUP BY tile
