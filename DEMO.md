@@ -86,3 +86,4 @@ After applying the correction:
 - `borderline_screen_area.mp4`: Ground truth 2.50 flashes/sec, SQL measured 2.82 flashes/sec (+12.9% residual bias).
 
 The remaining positive bias on the borderline clip is understood and primarily stems from discrete window framing and transition bounding over a very short duration. No fudge factors were applied to artificially tune the measurement.
+https://edycutjong-flashframe.hf.space
