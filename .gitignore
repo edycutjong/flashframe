@@ -20,3 +20,18 @@ bench_feature.mp4
 control_feature.mp4
 *metrics.csv
 *metrics_with_id.csv
+
+# Scratch and debug files
+patch_*.py
+web_patch.py
+debug*
+scratch.py
+/test_*.py
+test_*.html
+test.js
+out.html
+output*.html
+stats_*.txt
+filter.txt
+frame_*.jpg
+certificate.json

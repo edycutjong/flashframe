@@ -1,0 +1,10 @@
+fastapi[standard]
+uvicorn
+jinja2
+python-multipart
+pandas
+mcp
+mcp-clickhouse
+google-genai
+google-adk
+python-dotenv
