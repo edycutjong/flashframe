@@ -1,17 +1,20 @@
 :root {
     --bg: #0B0D10;
+    --bg-base: #0B0D10;
     --surface: #141821;
     --grid: #242B38;
     --text-high: #E6EAF0;
     --text-mid: #8A94A6;
     --text-low: #5A6474;
     --pass: #3DD68C;
+    --primary: #3DD68C;
     --amber: #F0B429;
     --fail: #FF4D4D;
+    --accent: #FF4D4D;
     --threshold: rgba(255, 255, 255, 0.6);
     --band-fill: rgba(255, 77, 77, 0.4);
     --band-hover: rgba(255, 77, 77, 0.8);
-    --focus-ring: #60a5fa;
+    --focus-ring: var(--primary);
     --font-display: 'Inter Tight', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -85,14 +88,17 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     border-radius: 4px;
 }
 .btn.primary {
-    background: #2563eb;
-    border-color: #1d4ed8;
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--bg-base);
 }
 .btn:hover {
     background: var(--grid);
 }
 .btn.primary:hover {
-    background: #1d4ed8;
+    background: var(--bg-base);
+    color: var(--primary);
+    border-color: var(--primary);
 }
 .btn:disabled {
     opacity: 0.5;
@@ -221,7 +227,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     width: 106px;
     height: 100%;
     background: var(--grid);
-    border: 1px solid #222;
+    border: 1px solid var(--bg-base);
 }
 
 .card-grid {
@@ -231,7 +237,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 }
 
 .adjudicated-block blockquote {
-    background: #111;
+    background: var(--surface);
     border-left: 4px solid var(--text-low);
     padding: 1rem;
     margin: 0;
@@ -297,7 +303,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     padding: 1rem;
     overflow-x: auto;
     font-family: var(--font-mono);
-    color: #4ade80;
+    color: var(--primary);
 }
 
 .stage-list {
