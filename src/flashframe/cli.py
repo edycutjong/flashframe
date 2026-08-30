@@ -106,7 +106,7 @@ async def run_pipeline(video_path):
         "CHDB_ENABLED": "true"
     })
 
-    mcp_python = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "bin", "python3")
+    mcp_python = sys.executable
 
     clickhouse = McpToolset(
         connection_params=StdioConnectionParams(
