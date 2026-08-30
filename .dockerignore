@@ -3,6 +3,8 @@
 __pycache__
 *.mp4
 !assets/*.mp4
+!span.mp4
+!test_clip.mp4
 *.env
 .env*
 credentials.json
