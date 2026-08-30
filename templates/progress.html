@@ -56,6 +56,18 @@
                     }
                 });
                 
+                if (data.status === 'error') {
+                    stageList.style.display = 'none';
+                    const errEl = document.createElement('div');
+                    errEl.style.color = 'red';
+                    errEl.style.border = '1px solid red';
+                    errEl.style.padding = '1rem';
+                    errEl.innerHTML = `<h3>Scan Failed</h3><p>${data.error_message}</p><p>Please try again later.</p>`;
+                    document.querySelector('main').appendChild(errEl);
+                    if (slowQueryTimeout) clearTimeout(slowQueryTimeout);
+                    return; // stop polling
+                }
+                
                 if (data.status === 'complete' || allDone) {
                     setTimeout(() => {
                         window.location.href = `/report/${scanId}`;

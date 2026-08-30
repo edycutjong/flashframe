@@ -157,8 +157,9 @@ async def test_adk_function_call_trigger():
     # ADK function-call trigger — a borderline verdict causes resample_frames to be invoked
     # Test that if we provide the right prompt to the ADK agent, it calls resample_frames
     
-    with patch('google.genai.Client.models') as mock_models:
+    with patch('google.adk.models.google_llm.Gemini.generate_content_async') as mock_generate:
         from google.genai.types import GenerateContentResponse, Candidate, Content, Part, FunctionCall
+        from google.adk.models.google_llm import LlmResponse
         
         mock_resp = GenerateContentResponse(
             candidates=[
@@ -174,13 +175,23 @@ async def test_adk_function_call_trigger():
                 )
             ]
         )
-        mock_models.generate_content.return_value = mock_resp
-        mock_models.generate_content_stream.return_value = [mock_resp]
+        
+        call_count = [0]
+        async def mock_gen(*args, **kwargs):
+            if call_count[0] == 0:
+                call_count[0] += 1
+                yield LlmResponse.create(mock_resp)
+            else:
+                yield LlmResponse.create(GenerateContentResponse(
+                    candidates=[Candidate(content=Content(parts=[Part.from_text(text="Done")]))]
+                ))
+            
+        mock_generate.side_effect = mock_gen
         
         called_args = []
         async def resample_frames(frame_start: int, frame_end: int, target_fps: int) -> dict:
             called_args.append((frame_start, frame_end, target_fps))
-            return {"status": "success"}
+            raise RuntimeError("StopRunner")
 
         agent = LlmAgent(
             model="gemini-3.6-flash",
@@ -194,12 +205,16 @@ async def test_adk_function_call_trigger():
         session_service = InMemorySessionService()
         runner = Runner(agent=agent, app_name="test", session_service=session_service, auto_create_session=True)
         
-        async for event in runner.run_async(
-            user_id="u", 
-            session_id="s", 
-            new_message=Content(role="user", parts=[Part.from_text(text="Call resample_frames")])
-        ):
-            pass
+        try:
+            async for event in runner.run_async(
+                user_id="u",
+                session_id="s",
+                new_message=Content(role="user", parts=[Part.from_text(text="Call resample_frames")])
+            ):
+                pass
+        except RuntimeError as e:
+            if str(e) != "StopRunner":
+                raise
             
         assert len(called_args) > 0
         assert called_args[0] == (1025, 1055, 30)
