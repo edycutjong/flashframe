@@ -211,28 +211,39 @@ async def report(request: Request, scan_id: str):
     filmstrip_data = []
     if not cert['passed'] and cert['frame_end'] > cert['frame_start']:
         n_frames = 7
-        start = int(cert['frame_start'])
-        end = int(cert['frame_end'])
-        step = max(1, (end - start) // (n_frames - 1))
-        indices = [start + i * step for i in range(n_frames)]
-        if indices[-1] > end:
-            indices[-1] = end
-            
-        select_expr = "+".join(f"eq(n\,{idx})" for idx in indices)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cmd = [
-                "ffmpeg", "-y", "-i", actual_source_file,
-                "-vf", f"select='{select_expr}'",
-                "-vsync", "0",
-                os.path.join(tmpdir, "frame_%d.jpg")
-            ]
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            for i in range(1, n_frames + 1):
-                fpath = os.path.join(tmpdir, f"frame_{i}.jpg")
-                if os.path.exists(fpath):
-                    with open(fpath, "rb") as f:
-                        b64 = base64.b64encode(f.read()).decode("utf-8")
-                        filmstrip_data.append(f"data:image/jpeg;base64,{b64}")
+        clip_path = "span.mp4"
+        if os.path.exists(clip_path):
+            try:
+                out = subprocess.check_output([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-count_packets", "-show_entries", "stream=nb_read_packets",
+                    "-of", "csv=p=0", clip_path
+                ])
+                actual_frames = int(out.decode().strip())
+            except Exception:
+                actual_frames = cert['frame_end'] - cert['frame_start']
+                
+            actual_frames = max(7, actual_frames)
+            step = max(1, actual_frames // (n_frames - 1))
+            indices = [i * step for i in range(n_frames)]
+            if indices[-1] >= actual_frames:
+                indices[-1] = actual_frames - 1
+                
+            select_expr = "+".join(f"eq(n\,{idx})" for idx in indices)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cmd = [
+                    "ffmpeg", "-y", "-i", clip_path,
+                    "-vf", f"select='{select_expr}'",
+                    "-vsync", "0",
+                    os.path.join(tmpdir, "frame_%d.jpg")
+                ]
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                for i in range(1, n_frames + 1):
+                    fpath = os.path.join(tmpdir, f"frame_{i}.jpg")
+                    if os.path.exists(fpath):
+                        with open(fpath, "rb") as f:
+                            b64 = base64.b64encode(f.read()).decode("utf-8")
+                            filmstrip_data.append(f"data:image/jpeg;base64,{b64}")
 
     source_fps = float(meta_row.get("source_fps", 25.0))
 
