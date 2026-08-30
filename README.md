@@ -36,11 +36,11 @@ python -m flashframe.cli
 
 ## Results
 
-| Clip | Ground truth | Observed |
+| Clip | Ground truth | Observed (SQL-measured) |
 |---|---|---|
-| `control_clean.mp4` | PASS, 0 spans | PASS, zero flagged spans |
-| `hard_fail_strobe.mp4` | FAIL, frames 739-760 @ 6.25 flashes/sec | FAIL, frames 740-760 |
-| `borderline_screen_area.mp4` | PASS only after resample, 2.5 flashes/sec | PASS, frames 1025-1055 @ 2.5 flashes/sec |
+| `control_clean.mp4` | PASS, 0 spans | PASS, **zero** flagged spans |
+| `hard_fail_strobe.mp4` | FAIL, frames 739-760 @ 6.25 flashes/sec | FAIL, frames 740-760 @ **6.25** — exact |
+| `borderline_screen_area.mp4` | PASS only after resample, 2.5 flashes/sec | PASS, frames 1025-1055 @ **2.82** (+12.9 %) |
 
 **Benchmark** — 138,240 frames (92 min 9.6 s at 25 fps), N=5, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1:
 
@@ -160,6 +160,7 @@ resp = client.models.generate_content(
 
 - **Screening-grade, not a certified lab test.** Flashframe measures **luma code value (Y′)** from the decoded signal under an assumed reference display. A certified test measures **photometric luminance at a calibrated display.**
 - **Screen area is a 3×3 tiled proxy**, not true per-pixel measurement.
+- **Measured accuracy against constructed ground truth is exact on the full-field case and +12.9 % on the small-area case, biased toward over-reporting.** For a screening tool that is the safer direction — it errs toward flagging for human review rather than clearing a genuine hazard — but a clip near the limit can be flagged conservatively. The residual bias was **disclosed rather than tuned away**, because adding a correction factor would invalidate the claim that thresholds come from published Ofcom / ITU-R criteria.
 - **Gemini's figures are visual estimates, not measurements.** Across runs its flash-rate estimates were 5.0, 5.2, 5.7 and 6.25 against a ground truth of 6.25; screen area 17.4% and 20.3% against a true 17.36%. Every estimate fell on the correct side of its threshold — which is what the product needs from it — but the certificate's measured value comes from the SQL, never from Gemini.
 - **Thresholds ship as inspectable data** (`thresholds.csv`), cited to source, so anyone can verify the arithmetic against the published criteria.
 
@@ -188,3 +189,7 @@ python bench.py
 - Gemini API free tier: **5 requests/minute, 20/day per model**. The resample loop is multi-call, so a demo run may need spacing. The app catches 429 and says so rather than failing blankly.
 - ClickHouse Cloud auto-suspends when idle; a cold first query costs **~25 s**. The server issues a warm-up query on startup and the UI says what is happening.
 - Ingest is round-trip bound (see benchmark).
+
+## Test Suite
+The test suite consists of 5 tests covering schema discovery, windowed SQL correctness on ground truth, chDB threshold join, structured output parsing, and agentic resampling escalation.
+Currently, exactly **5 tests pass** cleanly against the live ClickHouse database without calling the Gemini API.
