@@ -8,3 +8,5 @@ coverage/
 .DS_Store
 .venv/
 *.mp4
+!span.mp4
+!synthetic_false_positive.mp4

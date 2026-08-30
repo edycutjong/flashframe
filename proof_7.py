@@ -32,7 +32,10 @@ def proof_7():
     resp_a = client.models.generate_content(
         model=model,
         contents=[
-            types.Part.from_bytes(data=clip_a, mime_type="video/mp4"),
+            types.Part(
+                inline_data=types.Blob(data=clip_a, mime_type="video/mp4"),
+                video_metadata=types.VideoMetadata(fps=24)
+            ),
             types.Part.from_text(text="The frame span from frames 739 to 761 in the source video corresponds to this short clip. The automated luminance scan flagged this span for potential photosensitivity hazards due to high luminance variance. Please analyze the visual content to determine the actual flash rate, if there are harmful flashes on screen, if they pass or fail the Ofcom limit of 3 flashes/sec, and what on-screen content causes them.")
         ],
         config=types.GenerateContentConfig(
@@ -53,7 +56,10 @@ def proof_7():
     resp_b = client.models.generate_content(
         model=model,
         contents=[
-            types.Part.from_bytes(data=clip_b, mime_type="video/mp4"),
+            types.Part(
+                inline_data=types.Blob(data=clip_b, mime_type="video/mp4"),
+                video_metadata=types.VideoMetadata(fps=24)
+            ),
             types.Part.from_text(text="The automated luminance scan flagged this span for potential photosensitivity hazards due to high luminance variance (flashes detected). Please analyze the visual content to determine if there are harmful flashes on screen, if they pass or fail the Ofcom limit of 3 flashes/sec, and what on-screen content causes them. Keep in mind that a flash must cover at least 25% of the screen area to be considered a hazard.")
         ],
         config=types.GenerateContentConfig(
