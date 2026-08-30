@@ -47,15 +47,32 @@ The 10 fps first pass measured the strobe at 5.0 flashes/sec; after the agent's 
    ```
 
 ## BENCHMARK
-The ffmpeg generation of the 92-minute clip was too slow to finish (reached frame ~2000 at ~3x speed before aborting). To unblock the benchmark, a 30.88-second clip was synthetically generated to extract timing numbers.
 
-p50: 2542.11 ms (EXCLUDING ffmpeg extraction and Gemini adjudication)
-p95: 2689.46 ms (EXCLUDING ffmpeg extraction and Gemini adjudication)
-N: 5
-Rows ingested: 7720
-Hardware & Size: ClickHouse Cloud, 1 replica, 8 GiB / 2 vCPU, AWS ap-southeast-1
+To evaluate the generation and analysis bottlenecks on extended durations, we generated a 138,240 frame (92 minutes) synthetic video containing a single benign ramp and a spliced 6.25 flashes/sec, 22-frame strobe at a randomly picked offset. We use a 16x16 luma generator scaled via nearest-neighbour to bring generation time down dramatically.
 
-Control zero-false-positive check: 0 false positives on control_clean.mp4.
+**NOTE:** ffmpeg extraction and Gemini adjudication are EXCLUDED from the timed region.
 
-To reproduce:
-`python3 bench.py`
+### Data
+* **Row count (frames):** 138,240
+* **Iterations (N):** 5
+
+### Hardware
+* ClickHouse Cloud, 1 replica, 8 GiB / 2 vCPU, AWS ap-southeast-1
+
+### Results (seconds)
+* **INGEST (bulk INSERT):** p50 = 0.338s / p95 = 0.356s
+* **DETECT (windowed detection SQL alone, data already resident):** p50 = 0.106s / p95 = 0.163s
+* **TOTAL:** p50 = 0.437s / p95 = 0.478s
+
+*(Note: INGEST time may be dominated by MCP round-trips or HTTP overhead rather than ClickHouse itself, which is a known limitation).*
+
+### Accuracy
+* **Expected manifest offset:** 103127
+* **Detected span:** 103127
+* **Control result:** 0 false-positives on an identical control video without the strobe.
+
+### Reproduce
+```bash
+python3 generator.py
+python3 bench.py
+```

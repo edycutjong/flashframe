@@ -16,3 +16,7 @@ coverage/
 !assets/hard_fail_strobe.mp4
 !assets/borderline_screen_area.mp4
 src/*.egg-info
+bench_feature.mp4
+control_feature.mp4
+*metrics.csv
+*metrics_with_id.csv
