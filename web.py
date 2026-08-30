@@ -237,6 +237,12 @@ async def report(request: Request, scan_id: str):
     source_fps = float(meta_row.get("source_fps", 25.0))
 
 
+
+    df = pd.DataFrame(rows)
+    if not df.empty and 'frame_idx' not in df.columns:
+        if len(df.columns) >= 2:
+            df.columns = ['frame_idx', 'yavg']
+
     # Infer fps and frame counts for older scans without metadata
     if df.empty or 'frame_idx' not in df.columns:
         inferred_measured_fps = 60.0
@@ -252,11 +258,6 @@ async def report(request: Request, scan_id: str):
     else:
         measured_fps = float(inferred_measured_fps)
 
-
-    df = pd.DataFrame(rows)
-    if not df.empty and 'frame_idx' not in df.columns:
-        if len(df.columns) >= 2:
-            df.columns = ['frame_idx', 'yavg']
     
     width = 1000
     height = 140
