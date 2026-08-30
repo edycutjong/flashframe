@@ -16,9 +16,11 @@ import sys
 from src.flashframe.cli import run_pipeline
 
 scan_status_dict = {}
+clickhouse_client = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global clickhouse_client
     load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
     env = os.environ.copy()
     env.update({
@@ -36,9 +38,11 @@ async def lifespan(app: FastAPI):
                 command=mcp_python,
                 args=["-m", "mcp_clickhouse.main"],
                 env=env,
-            )
+            ),
+            timeout=60.0
         )
     )
+    clickhouse_client = clickhouse
     try:
         tools = await clickhouse.get_tools()
         run_query_tool = next(t for t in tools if t.name == "run_query")
@@ -106,30 +110,65 @@ async def report(request: Request, scan_id: str):
     with open("certificate.json") as f:
         cert = json.load(f)
         
-    df = pd.read_csv("frame_metrics.csv")
-    df_agg = df.groupby('frame_idx').agg({'ymax': 'max', 'ymin': 'min', 'pts_time': 'min'}).reset_index()
+    global clickhouse_client
+    tools = await clickhouse_client.get_tools()
+    run_query_tool = next(t for t in tools if t.name == "run_query")
+    
+    query = f"SELECT frame_idx, yavg FROM frame_metrics WHERE scan_id = '{scan_id}' AND tile = 0 ORDER BY frame_idx"
+    try:
+        res = await run_query_tool.run_async(args={"query": query}, tool_context=None)
+        text = ""
+        if hasattr(res, "content") and len(res.content) > 0 and hasattr(res.content[0], "text"):
+            text = res.content[0].text
+        elif hasattr(res, "text"):
+            text = res.text
+        elif isinstance(res, list) and len(res) > 0 and hasattr(res[0], "text"):
+            text = res[0].text
+        elif isinstance(res, dict) and "content" in res:
+            text = res["content"][0]["text"]
+        else:
+            text = str(res)
+        data = json.loads(text)
+        rows = data.get("rows", data) if isinstance(data, dict) else data
+    except Exception as e:
+        print("Failed to run query:", e)
+        rows = []
+        
+    df = pd.DataFrame(rows)
+    if not df.empty and 'frame_idx' not in df.columns:
+        if len(df.columns) >= 2:
+            df.columns = ['frame_idx', 'yavg']
     
     width = 1000
     height = 140
     
-    max_frame = df_agg['frame_idx'].max()
-    min_frame = df_agg['frame_idx'].min()
-    total_frames = len(df_agg)
-    
-    df_agg['bin'] = ((df_agg['frame_idx'] - min_frame) / (max_frame - min_frame) * (width - 1)).astype(int)
-    binned = df_agg.groupby('bin').agg({'ymax': 'max', 'ymin': 'min'}).reset_index()
-    
-    points_up = []
-    points_down = []
-    
-    for _, row in binned.iterrows():
-        x = row['bin']
-        y_max_norm = height - (row['ymax'] / 255.0 * height)
-        y_min_norm = height - (row['ymin'] / 255.0 * height)
-        points_up.append(f"{x},{y_max_norm}")
-        points_down.insert(0, f"{x},{y_min_norm}")
+    if df.empty or 'frame_idx' not in df.columns:
+        no_data = True
+        polygon_points = ""
+        min_frame = 0
+        max_frame = 0
+        total_frames = 0
+    else:
+        no_data = False
+        max_frame = df['frame_idx'].max()
+        min_frame = df['frame_idx'].min()
+        total_frames = len(df)
         
-    polygon_points = " ".join(points_up + points_down)
+        # Binning: min/max binning per pixel column
+        df['bin'] = ((df['frame_idx'] - min_frame) / max((max_frame - min_frame), 1) * (width - 1)).astype(int)
+        binned = df.groupby('bin').agg(ymax=('yavg', 'max'), ymin=('yavg', 'min')).reset_index()
+        
+        points_up = []
+        points_down = []
+        
+        for _, row in binned.iterrows():
+            x = row['bin']
+            y_max_norm = height - (row['ymax'] / 255.0 * height)
+            y_min_norm = height - (row['ymin'] / 255.0 * height)
+            points_up.append(f"{x},{y_max_norm}")
+            points_down.insert(0, f"{x},{y_min_norm}")
+            
+        polygon_points = " ".join(points_up + points_down)
     
     thresholds = []
     with open("thresholds.csv") as f:
@@ -146,8 +185,12 @@ async def report(request: Request, scan_id: str):
         verdict = "BORDERLINE"
         glyph = "⚠"
         
-    span_x1 = ((cert['frame_start'] - min_frame) / (max_frame - min_frame) * width)
-    span_x2 = ((cert['frame_end'] - min_frame) / (max_frame - min_frame) * width)
+    if max_frame > min_frame:
+        span_x1 = ((cert['frame_start'] - min_frame) / (max_frame - min_frame) * width)
+        span_x2 = ((cert['frame_end'] - min_frame) / (max_frame - min_frame) * width)
+    else:
+        span_x1 = 0
+        span_x2 = 0
     span_width = max(3.0, span_x2 - span_x1)
     
     return templates.TemplateResponse(request, "report.html", {
@@ -165,5 +208,6 @@ async def report(request: Request, scan_id: str):
         "total_frames": total_frames,
         "fps": 30,
         "min_frame": min_frame,
-        "max_frame": max_frame
+        "max_frame": max_frame,
+        "no_data": no_data
     })

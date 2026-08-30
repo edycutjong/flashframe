@@ -35,6 +35,12 @@
 
         <!-- B. THE TIMELINE -->
         <div class="timeline-container">
+            {% if no_data %}
+            <div style="padding: 2rem; text-align: center; color: var(--text-dim); background: var(--surface);">
+                <p>Curve data for this scan is no longer resident in ClickHouse.</p>
+                <p>Verdict and summary data below are preserved from the original run.</p>
+            </div>
+            {% else %}
             <figure class="timeline-figure">
                 <div class="draw-mask" style="width: 100%; height: 100%; overflow: hidden; position: absolute; left: 0; top: 0;">
                     <svg class="timeline-svg" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" role="img" aria-label="Luminance curve. Verdict: {{ verdict }}. {{ 1 if not cert.passed else 0 }} spans flagged. Measured rate: {{ cert.measured_value }} Hz.">
@@ -63,7 +69,9 @@
                 <span>Frame {{ min_frame }} (0.0s)</span>
                 <span>Frame {{ max_frame }} ({{ "%.1f" | format(max_frame / fps) }}s)</span>
             </div>
+            {% endif %}
         </div>
+
 
         <!-- C. VIOLATION CARDS -->
         {% if not cert.passed %}
