@@ -1,21 +1,26 @@
 :root {
-    --bg: #121212;
-    --text: #ffffff;
-    --text-dim: #cccccc;
-    --pass: #4ade80;
-    --fail: #f87171;
-    --borderline: #facc15;
-    --timeline-bg: #1e1e1e;
-    --band-fill: rgba(248, 113, 113, 0.4);
-    --band-hover: rgba(248, 113, 113, 0.8);
-    --card-bg: #1e1e1e;
+    --bg: #0B0D10;
+    --surface: #141821;
+    --grid: #242B38;
+    --text-high: #E6EAF0;
+    --text-mid: #8A94A6;
+    --text-low: #5A6474;
+    --pass: #3DD68C;
+    --amber: #F0B429;
+    --fail: #FF4D4D;
+    --threshold: rgba(255, 255, 255, 0.6);
+    --band-fill: rgba(255, 77, 77, 0.4);
+    --band-hover: rgba(255, 77, 77, 0.8);
     --focus-ring: #60a5fa;
+    --font-display: 'Inter Tight', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
+
 
 body {
     background-color: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text-high);
+    font-family: var(--font-display);
     margin: 0;
     padding: 0;
     line-height: 1.5;
@@ -41,7 +46,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--grid);
 }
 
 /* Verdict Header */
@@ -63,17 +68,17 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .verdict-large[data-verdict="PASS"] { color: var(--pass); }
 .verdict-large[data-verdict="FAIL"] { color: var(--fail); }
-.verdict-large[data-verdict="BORDERLINE"] { color: var(--borderline); }
+.verdict-large[data-verdict="BORDERLINE"] { color: var(--amber); }
 
 .verdict-meta {
     font-size: 1.1rem;
-    color: var(--text-dim);
+    color: var(--text-mid);
 }
 
 .btn {
-    background: #333;
-    border: 1px solid #555;
-    color: var(--text);
+    background: var(--grid);
+    border: 1px solid var(--text-low);
+    color: var(--text-high);
     padding: 0.5rem 1rem;
     cursor: pointer;
     font-size: 1rem;
@@ -84,7 +89,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     border-color: #1d4ed8;
 }
 .btn:hover {
-    background: #444;
+    background: var(--grid);
 }
 .btn.primary:hover {
     background: #1d4ed8;
@@ -96,8 +101,8 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 /* Timeline */
 .timeline-container {
-    background: var(--timeline-bg);
-    border: 1px solid #333;
+    background: var(--surface);
+    border: 1px solid var(--grid);
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 3rem;
@@ -119,7 +124,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .timeline-curve {
     fill: rgba(255, 255, 255, 0.1);
-    stroke: var(--text);
+    stroke: var(--text-high);
     stroke-width: 1.5px;
     transition: all 0.3s;
 }
@@ -130,7 +135,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 }
 
 .threshold-line {
-    stroke: #ff9800;
+    stroke: var(--threshold);
     stroke-width: 1;
     stroke-dasharray: 4, 4;
 }
@@ -147,7 +152,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 .timeline-axes {
     display: flex;
     justify-content: space-between;
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 0.9rem;
     color: #888;
     margin-top: 0.5rem;
@@ -186,8 +191,8 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 /* Violation Card */
 .violation-card {
-    background: var(--card-bg);
-    border: 2px solid #333;
+    background: var(--surface);
+    border: 2px solid var(--grid);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -200,13 +205,13 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     display: flex;
     justify-content: space-between;
     margin-bottom: 1rem;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid var(--grid);
     padding-bottom: 0.5rem;
 }
 
 .filmstrip {
     height: 60px;
-    background: #000;
+    background: var(--bg);
     display: flex;
     gap: 4px;
     margin-bottom: 1rem;
@@ -215,7 +220,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 .filmstrip-frame {
     width: 106px;
     height: 100%;
-    background: #333;
+    background: var(--grid);
     border: 1px solid #222;
 }
 
@@ -227,7 +232,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .adjudicated-block blockquote {
     background: #111;
-    border-left: 4px solid #555;
+    border-left: 4px solid var(--text-low);
     padding: 1rem;
     margin: 0;
     font-style: italic;
@@ -239,7 +244,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     width: 640px;
     max-width: 100%;
     margin-bottom: 1rem;
-    background: #000;
+    background: var(--bg);
 }
 .safety-gate video {
     width: 100%;
@@ -281,17 +286,17 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 /* Certificate */
 .certificate-section {
-    background: #1a1a1a;
+    background: var(--surface);
     padding: 1.5rem;
-    border: 1px solid #333;
+    border: 1px solid var(--grid);
     border-radius: 8px;
     margin-top: 4rem;
 }
 .cert-code {
-    background: #000;
+    background: var(--bg);
     padding: 1rem;
     overflow-x: auto;
-    font-family: monospace;
+    font-family: var(--font-mono);
     color: #4ade80;
 }
 
@@ -302,7 +307,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 }
 .stage {
     padding: 0.5rem 0;
-    color: var(--text-dim);
+    color: var(--text-mid);
 }
 .stage.done {
     color: var(--pass);
@@ -314,12 +319,24 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 .upload-form, .seed-clips {
     margin-top: 2rem;
     padding: 2rem;
-    background: var(--card-bg);
+    background: var(--surface);
     border-radius: 8px;
 }
 .drop-zone {
-    border: 2px dashed #555;
+    border: 2px dashed var(--text-low);
     padding: 3rem;
     text-align: center;
     margin-bottom: 1rem;
+}
+
+.measured-value {
+    font-family: var(--font-mono);
+    color: var(--text-high);
+}
+.adjudicated-value {
+    color: var(--amber);
+}
+.published-value {
+    color: var(--threshold);
+    border-bottom: 1px dashed var(--threshold);
 }

@@ -24,9 +24,9 @@
                 {{ verdict }} <span aria-hidden="true">{{ glyph }}</span>
             </div>
             <div class="verdict-meta">
-                <div><strong>{{ source_file }}</strong> &bull; {{ max_frame }} source frames (sampled at {{ "%.0f" | format(measured_fps) }} fps) &bull; {{ "%.0f" | format(fps) }} fps</div>
+                <div><strong>{{ source_file }}</strong> &bull; <span class="measured-value">{{ max_frame }}</span> source frames (sampled at <span class="measured-value">{{ "%.0f" | format(measured_fps) }}</span> fps) &bull; <span class="measured-value">{{ "%.0f" | format(fps) }}</span> fps</div>
                 <div>Territory: UK-Ofcom &bull; Ofcom 2.12 - screening-grade</div>
-                <div>{{ 1 if not cert.passed else 0 }} violation(s)</div>
+                <div><span class="measured-value">{{ 1 if not cert.passed else 0 }}</span> violation(s)</div>
             </div>
             <div style="margin-left: auto;">
                 <button class="btn primary" onclick="downloadCert()">Download Certificate</button>
@@ -36,7 +36,7 @@
         <!-- B. THE TIMELINE -->
         <div class="timeline-container">
             {% if no_data %}
-            <div style="padding: 2rem; text-align: center; color: var(--text-dim); background: var(--surface);">
+            <div style="padding: 2rem; text-align: center; color: var(--text-mid); background: var(--surface);">
                 <p>Curve data for this scan is no longer resident in ClickHouse.</p>
                 <p>Verdict and summary data below are preserved from the original run.</p>
             </div>
@@ -66,8 +66,8 @@
                 {% endif %}
             </figure>
             <div class="timeline-axes">
-                <span>Frame {{ min_frame }} (0.0s)</span>
-                <span>Frame {{ max_frame }} ({{ "%.1f" | format(max_frame / fps) }}s)</span>
+                <span>Frame <span class="measured-value">{{ min_frame }}</span> (<span class="measured-value">0.0</span>s)</span>
+                <span>Frame <span class="measured-value">{{ max_frame }}</span> (<span class="measured-value">{{ "%.1f" | format(max_frame / fps) }}</span>s)</span>
             </div>
             {% endif %}
         </div>
@@ -79,16 +79,16 @@
             <div class="card-header">
                 <div>
                     <strong>Flagged Span</strong>
-                    <div style="color: var(--text-dim);">Frames {{ cert.frame_start }}-{{ cert.frame_end }} &bull; Timecode {{ "%.2f" | format(cert.frame_start / fps) }}s - {{ "%.2f" | format(cert.frame_end / fps) }}s &bull; Length {{ cert.frame_end - cert.frame_start }} frames</div>
+                    <div style="color: var(--text-mid);">Frames <span class="measured-value">{{ cert.frame_start }}</span>-<span class="measured-value">{{ cert.frame_end }}</span> &bull; Timecode <span class="measured-value">{{ "%.2f" | format(cert.frame_start / fps) }}</span>s - <span class="measured-value">{{ "%.2f" | format(cert.frame_end / fps) }}</span>s &bull; Length <span class="measured-value">{{ cert.frame_end - cert.frame_start }}</span> frames</div>
                 </div>
                 <div style="text-align: right;">
-                    <strong style="color: var(--fail);">{{ cert.measured_value }} Hz</strong>
+                    <strong style="color: var(--fail);" class="measured-value">{{ cert.measured_value }} Hz</strong>
                 </div>
             </div>
             
             <div class="filmstrip" aria-hidden="true">
                 {% if filmstrip_note %}
-                    <div style="padding: 2rem; color: var(--text-dim); font-style: italic; text-align: center; width: 100%;">{{ filmstrip_note }}</div>
+                    <div style="padding: 2rem; color: var(--text-mid); font-style: italic; text-align: center; width: 100%;">{{ filmstrip_note }}</div>
                 {% elif filmstrip_data %}
                     {% for img in filmstrip_data %}
                     <img class="filmstrip-frame" src="{{ img }}" alt="" />
@@ -105,23 +105,23 @@
             
             <div class="card-grid">
                 <div>
-                    <h3>MEASURED (ClickHouse, {{ "%.0f" | format(measured_fps) }}fps)</h3>
+                    <h3>MEASURED (ClickHouse, <span class="measured-value">{{ "%.0f" | format(measured_fps) }}</span>fps)</h3>
                     <ul>
-                        <li>Flash rate: <strong>{{ "%.2f" | format(cert.measured_value) }} flashes/sec</strong></li>
+                        <li>Flash rate: <strong class="measured-value">{{ "%.2f" | format(cert.measured_value) }} flashes/sec</strong></li>
                     </ul>
-                    <div style="margin-top: 1rem; color: var(--text-dim); font-size: 0.9rem;">
-                        PUBLISHED: thresholds.csv row 1 (UK-Ofcom, 3.0 Hz, 20.0 IRE, 25.0%)
+                    <div style="margin-top: 1rem; color: var(--text-mid); font-size: 0.9rem;">
+                        PUBLISHED: thresholds.csv row 1 (UK-Ofcom, <span class="published-value">3.0 Hz</span>, <span class="published-value">20.0 IRE</span>, <span class="published-value">25.0%</span>)
                     </div>
                 </div>
                 <div class="adjudicated-block">
                     <h3>THRESHOLD (Ofcom 2.12)</h3>
-                    <p><strong>3.00 flashes/sec</strong></p>
-                    <p>Luma delta: > 20 IRE</p>
-                    <p>Screen area: > 25%</p>
+                    <p><strong class="published-value">3.00 flashes/sec</strong></p>
+                    <p>Luma delta: <span class="published-value">> 20 IRE</span></p>
+                    <p>Screen area: <span class="published-value">> 25%</span></p>
                 </div>
                 <div class="adjudicated-block">
-                    <h3>ADJUDICATED (Gemini)</h3>
-                    <blockquote>
+                    <h3 class="adjudicated-value">ADJUDICATED (Gemini)</h3>
+                    <blockquote class="adjudicated-value">
                         <p><strong>{{ "PASS" if cert.passed else "FAIL" }}</strong> — {{ cert.cause }}</p>
                         <p><strong>Remediation:</strong> {{ cert.remediation }}</p>
                     </blockquote>
