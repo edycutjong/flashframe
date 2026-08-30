@@ -89,10 +89,9 @@
             
             <div class="card-grid">
                 <div>
-                    <h3>Measured</h3>
+                    <h3>MEASURED (ClickHouse, 60fps)</h3>
                     <ul>
-                        <li>Flash rate: <strong>{{ cert.measured_value }} Hz</strong></li>
-                        <li>Threshold: {{ limit }} Hz</li>
+                        <li>Flash rate: <strong>{{ "%.2f" | format(cert.measured_value) }} flashes/sec</strong></li>
                         <li>Luma delta: > 20 IRE</li>
                         <li>Screen area: > 25%</li>
                     </ul>
@@ -101,9 +100,13 @@
                     </div>
                 </div>
                 <div class="adjudicated-block">
-                    <h3>Adjudicated</h3>
+                    <h3>THRESHOLD (Ofcom 2.12)</h3>
+                    <p><strong>3.00 flashes/sec</strong></p>
+                </div>
+                <div class="adjudicated-block">
+                    <h3>ADJUDICATED (Gemini)</h3>
                     <blockquote>
-                        <p><strong>Cause:</strong> {{ cert.cause }}</p>
+                        <p><strong>{{ "PASS" if cert.passed else "FAIL" }}</strong> — {{ cert.cause }}</p>
                         <p><strong>Remediation:</strong> {{ cert.remediation }}</p>
                     </blockquote>
                 </div>

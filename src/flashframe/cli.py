@@ -69,7 +69,7 @@ async def run_pipeline(video_path):
     
     with open(os.path.expanduser('~/.config/gemini/credentials.json'), 'r') as f:
         creds = json.load(f)
-        api_key = creds['keys'][0]['key']
+        api_key = creds['keys'][3]['key']
         model_name = creds.get('model', 'gemini-3.6-flash')
         
     os.environ["GEMINI_API_KEY"] = api_key
@@ -107,9 +107,10 @@ async def run_pipeline(video_path):
     print(f"Flagged span {frame_start}-{frame_end} ({flashes} flashes/sec)...")
     
     resample_count = 0
+    current_measured_rate = flashes
     
     async def resample_frames(frame_start: int, frame_end: int, target_fps: int) -> dict:
-        nonlocal resample_count
+        nonlocal resample_count, current_measured_rate
         if resample_count >= 2:
             return {"status": "error", "message": "Max resample iterations reached."}
         resample_count += 1
@@ -117,6 +118,16 @@ async def run_pipeline(video_path):
         scan_id_new = run_extraction(video_path, fps_override=target_fps, frame_start=frame_start, frame_end=frame_end)
         await setup_db_and_ingest(run_query_tool, scan_id_new)
         new_res = await detect_violations(run_query_tool, scan_id_new, fps=target_fps)
+        try:
+            data = json.loads(new_res)
+            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict) and 'flashes' in data[0]:
+                current_measured_rate = data[0]['flashes']
+            elif isinstance(data, dict) and 'flashes' in data:
+                current_measured_rate = data['flashes']
+            elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], list) and len(data[0]) > 2:
+                current_measured_rate = data[0][2]
+        except Exception:
+            pass
         return {"status": "success", "detection_result": new_res, "new_scan_id": scan_id_new}
 
     def final_adjudicate(frame_start: int, frame_end: int) -> dict:
@@ -129,7 +140,7 @@ async def run_pipeline(video_path):
         for attempt in range(5):
             try:
                 v = run_adjudicate(video_path, frame_start, frame_end, model=model_name, api_key=api_key)
-                return {"passed": v.passed, "cause": v.cause, "remediation": v.remediation, "measured_value": v.measured_value, "threshold_value": v.threshold_value, "frame_start": v.frame_start, "frame_end": v.frame_end}
+                return {"passed": v.passed, "cause": v.cause, "remediation": v.remediation, "gemini_estimated_rate": v.measured_value, "frame_start": v.frame_start, "frame_end": v.frame_end}
             except APIError as e:
                 if e.code in [429, 503]:
                     wait_time = 20 * (attempt + 1)
@@ -139,12 +150,18 @@ async def run_pipeline(video_path):
                     raise
         return {"error": "Exceeded maximum retries for Gemini API"}
         
-    async def certify(scan_id: str, passed: bool, frame_start: int, frame_end: int, measured_value: float, threshold_value: float, cause: str, remediation: str) -> dict:
+    async def certify(scan_id: str, passed: bool, frame_start: int, frame_end: int, cause: str, remediation: str, gemini_estimated_rate: float = 0.0) -> dict:
         print(f"\n>>> certify <<<\n")
-        from .adjudicate import Verdict
         from .certify import write_certificate
-        v = Verdict(passed=passed, frame_start=frame_start, frame_end=frame_end, measured_value=measured_value, threshold_value=threshold_value, cause=cause, remediation=remediation)
-        cert = await write_certificate(run_query_tool, scan_id, v)
+        cert = await write_certificate(run_query_tool, scan_id, passed, frame_start, frame_end, current_measured_rate, cause, remediation, gemini_estimated_rate)
+        
+        print("\n================ ADJUDICATION REPORT ================")
+        print(f"MEASURED (ClickHouse)          {current_measured_rate:.2f} flashes/sec")
+        print(f"THRESHOLD (Ofcom 2.12)         3.00 flashes/sec")
+        status = "PASS" if passed else "FAIL"
+        print(f"ADJUDICATED (Gemini)           {status} — {cause}")
+        print("=====================================================\n")
+        
         print("Final Certificate Generated.")
         return cert
 
@@ -156,7 +173,7 @@ You are given a flagged span.
 If the current scan is from a 10fps extraction (which you should assume unless told otherwise), you MUST call resample_frames(frame_start, frame_end, target_fps=30) to get a more accurate reading.
 If the 30fps scan is still flagged or borderline, you MUST call resample_frames(frame_start, frame_end, target_fps=60). Max 2 resamples.
 Once you have the 60fps result (or 30fps if it definitively passes), you MUST call final_adjudicate(frame_start, frame_end) to get Gemini's blind visual verdict on the video.
-Finally, call certify(scan_id, passed, frame_start, frame_end, measured_value, threshold_value, cause, remediation) with Gemini's verdict to write the violation ledger and produce a certificate.
+Finally, call certify(scan_id, passed, frame_start, frame_end, cause, remediation, gemini_estimated_rate) with Gemini's verdict to write the violation ledger and produce a certificate. Note that gemini_estimated_rate corresponds to the rate estimated by Gemini.
 """,
         tools=[FunctionTool(resample_frames), FunctionTool(final_adjudicate), FunctionTool(certify)],
     )

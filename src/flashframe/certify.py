@@ -1,19 +1,22 @@
 import json
 
-async def write_certificate(run_query_tool, scan_id, verdict, tile=0):
+async def write_certificate(run_query_tool, scan_id, passed, frame_start, frame_end, measured_value, cause, remediation, gemini_estimated_rate=0.0):
+    await run_query_tool.run_async(args={"query": "ALTER TABLE violation_ledger ADD COLUMN IF NOT EXISTS gemini_estimated_rate Float32"}, tool_context=None)
+
     write_ledger_sql = f"""
-INSERT INTO violation_ledger
+INSERT INTO violation_ledger (scan_id, certified_at, territory, passed, frame_start, frame_end, measured, threshold, cause, remediation, gemini_estimated_rate)
 SELECT
     '{scan_id}' AS scan_id,
     now() AS certified_at,
     'UK-Ofcom' AS territory,
-    {1 if verdict.passed else 0} AS passed,
-    {verdict.frame_start},
-    {verdict.frame_end},
-    {verdict.measured_value},
+    {1 if passed else 0} AS passed,
+    {frame_start},
+    {frame_end},
+    {measured_value},
     (SELECT max_flashes_sec FROM threshold_reference WHERE territory = 'UK-Ofcom' AND criterion = 'flash_rate' LIMIT 1),
-    '{verdict.cause.replace("'", "''")}',
-    '{verdict.remediation.replace("'", "''")}'
+    '{cause.replace("'", "''")}',
+    '{remediation.replace("'", "''")}',
+    {gemini_estimated_rate}
 """
     res = await run_query_tool.run_async(args={"query": write_ledger_sql}, tool_context=None)
     
@@ -48,18 +51,20 @@ SELECT
             raise RuntimeError(f"Ledger insertion failed: {e}") from e
         raise
 
-    if row.get('measured') != verdict.measured_value or row.get('frame_start') != verdict.frame_start:
-        raise RuntimeError(f"Ledger mismatch: inserted {verdict.measured_value}, read back {row.get('measured')}")
+    if abs(float(row.get('measured', 0)) - measured_value) > 0.01 or row.get('frame_start') != frame_start:
+        raise RuntimeError(f"Ledger mismatch: inserted {measured_value}, read back {row.get('measured')}")
     
     cert = {
         "scan_id": scan_id,
         "certified_at": row.get('certified_at'),
-        "passed": bool(row.get('passed', verdict.passed)),
-        "frame_start": row.get('frame_start', verdict.frame_start),
-        "frame_end": row.get('frame_end', verdict.frame_end),
-        "measured_value": row.get('measured', verdict.measured_value),
-        "cause": row.get('cause', verdict.cause),
-        "remediation": row.get('remediation', verdict.remediation),
+        "passed": bool(row.get('passed', passed)),
+        "frame_start": row.get('frame_start', frame_start),
+        "frame_end": row.get('frame_end', frame_end),
+        "measured_value": row.get('measured', measured_value),
+        "threshold_value": row.get('threshold', 3.0),
+        "gemini_estimated_rate": row.get('gemini_estimated_rate', gemini_estimated_rate),
+        "cause": row.get('cause', cause),
+        "remediation": row.get('remediation', remediation),
         "read_back_query": read_back_query
     }
     

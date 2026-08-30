@@ -18,7 +18,7 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
     if not api_key:
         with open(os.path.expanduser('~/.config/gemini/credentials.json'), 'r') as f:
             creds = json.load(f)
-            api_key = creds['keys'][0]['key']
+            api_key = creds['keys'][1]['key']
             model = creds.get('model', model)
             
     client = genai.Client(api_key=api_key)
