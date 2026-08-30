@@ -12,5 +12,5 @@ RUN pip install --no-cache-dir "mcp-clickhouse[chdb]"
 
 COPY . /app
 
-EXPOSE 8080
-CMD ["uvicorn", "web:app", "--host", "0.0.0.0", "--port", "8080"]
+EXPOSE 7860
+CMD ["uvicorn", "web:app", "--host", "0.0.0.0", "--port", "7860"]
