@@ -3,7 +3,7 @@
 > Upload a locked cut, get a broadcast photosensitivity safety certificate — before you pay for the lab pass.
 
 **Live URL:** https://flashframe-production.up.railway.app  
-**Demo Video:** [Demo Video Link]  
+**Demo Video:** https://youtu.be/rPxGyYpVfAE  
 
 ![Python](https://img.shields.io/badge/Python-3.13-blue) ![ClickHouse](https://img.shields.io/badge/ClickHouse-Cloud-yellow) ![Gemini](https://img.shields.io/badge/Gemini-3.6--flash-orange) ![FastAPI](https://img.shields.io/badge/FastAPI-green)
 
@@ -25,9 +25,9 @@ Per-frame ffmpeg photometrics stream into ClickHouse; sliding-window SQL catches
 
 **Local path:** 
 ```bash
-git clone <repo>
+git clone https://github.com/edycutjong/flashframe.git
 cd flashframe
-uv pip install
+uv pip install -e . -r requirements.txt
 # credentials from ~/.config
 python -m flashframe.cli
 ```
@@ -58,7 +58,7 @@ python -m flashframe.cli
 
 ## The resample loop
 
-First-pass extraction runs at 10 fps. At 10 fps the Nyquist limit is 5 Hz, so an N=5 alternation **aliases**: `borderline_screen_area` measured **2.08 flashes/sec** and looked like a violation. The ADK agent noticed the verdict was borderline and called `resample_frames` itself — 30 fps, then 60 fps — where the rate resolved to **2.5 flashes/sec**, correctly under the 3.0 limit. **PASS.** A naive single-pass tool reports a false FAIL on that clip.
+First-pass extraction runs at 10 fps. At 10 fps the Nyquist limit is 5 Hz, so an N=5 alternation **aliases**: `borderline_screen_area` measured **2.08 flashes/sec** and looked like a violation. The ADK agent noticed the verdict was borderline and called `resample_frames` itself — 30 fps, then 60 fps — where the rate resolved to **2.82 flashes/sec** (against a ground truth of 2.5), correctly under the 3.0 limit. **PASS.** A naive single-pass tool reports a false FAIL on that clip.
 
 The same mechanism corrected an *understated* hazard: `hard_fail_strobe` measured 5.0 flashes/sec at 10 fps and resolved to 6.25 after escalation — the exact constructed ground truth.
 
@@ -126,7 +126,7 @@ FROM merged_spans
 ORDER BY flashes DESC
 ```
 
-As the query shows, ClickHouse tracks opposing transitions (`dir != lagInFrame(...)`) to ensure a full flash is registered, not just a single brightness change. Then `sum(is_flash) OVER (...)` identifies offending windows, and `merged_spans` outputs the exact frame span. Without ClickHouse, replicating this logic securely and rapidly over large time-series datasets would require a heavier architecture involving stream processing frameworks or manual windowing code. All four MCP tools do real work — greppable counts in this repo: `run_query` 39, `McpToolset` 12, `list_tables` 3, `list_databases` 3.
+As the query shows, ClickHouse tracks opposing transitions (`dir != lagInFrame(...)`) to ensure a full flash is registered, not just a single brightness change. Then `sum(is_flash) OVER (...)` identifies offending windows, and `merged_spans` outputs the exact frame span. Without ClickHouse, replicating this logic securely and rapidly over large time-series datasets would require a heavier architecture involving stream processing frameworks or manual windowing code. All four MCP tools do real work — as verified by `git grep` across all tracked files in this repo: `run_query` 53, `McpToolset` 17, `list_tables` 7, `list_databases` 5.
 
 **Remove Gemini and you ship a false-positive storm with no named cause.** 
 
@@ -172,7 +172,7 @@ Regenerate all three seed clips and the 138,240-frame benchmark clip from source
 
 ```bash
 # Generate seed clips
-python src/flashframe/generator.py
+python generator.py
 
 # Run the pipeline
 python -m flashframe.cli
@@ -192,4 +192,4 @@ python bench.py
 
 ## Test Suite
 The test suite consists of 5 tests covering schema discovery, windowed SQL correctness on ground truth, chDB threshold join, structured output parsing, and agentic resampling escalation.
-Currently, exactly **5 tests pass** cleanly against the live ClickHouse database without calling the Gemini API.
+Currently, exactly **5 tests pass** cleanly without calling the Gemini API, provided you have set live ClickHouse credentials (`CLICKHOUSE_URL`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`) in your environment and the database is warm (a cold run may time out before the service wakes). Without credentials, the database tests will skip and only 2 tests will run.
