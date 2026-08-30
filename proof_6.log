@@ -1,0 +1,57 @@
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/features/_feature_decorator.py:71: UserWarning: [EXPERIMENTAL] feature FeatureName.PLUGGABLE_AUTH is enabled.
+  check_feature_enabled()
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/tools/mcp_tool/mcp_toolset.py:400: UserWarning: [EXPERIMENTAL] feature FeatureName._MCP_GRACEFUL_ERROR_HANDLING is enabled.
+  session = await self._mcp_session_manager.create_session(
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/fastmcp/server/auth/providers/jwt.py:10: AuthlibDeprecationWarning: authlib.jose module is deprecated, please use joserfc instead.
+It will be compatible before version 2.0.0.
+  from authlib.jose import JsonWebKey, JsonWebToken
+2026-08-30 07:20:41,615 - mcp-clickhouse - INFO - ClickHouse tools registered
+2026-08-30 07:20:41,615 - mcp-clickhouse - INFO - Creating chDB client with data_path=:memory:
+2026-08-30 07:20:42,001 - mcp-clickhouse - INFO - Successfully connected to chDB with data_path=:memory:
+2026-08-30 07:20:42,002 - mcp-clickhouse - INFO - chDB tools and prompts registered
+
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                                                                              │
+│                         ▄▀▀ ▄▀█ █▀▀ ▀█▀ █▀▄▀█ █▀▀ █▀█                        │
+│                         █▀  █▀█ ▄▄█  █  █ ▀ █ █▄▄ █▀▀                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                FastMCP 2.14.7                                │
+│                            https://gofastmcp.com                             │
+│                                                                              │
+│                    🖥  Server:      mcp-clickhouse                            │
+│                    🚀 Deploy free: https://fastmcp.cloud                     │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                          ✨ FastMCP 3.0 is coming!                           │
+│       Pin `fastmcp < 3` in production, then upgrade when you're ready.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                          🎉 Update available: 3.4.7                          │
+│                      Run: pip install --upgrade fastmcp                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+[08/30/26 07:20:42] INFO     Starting MCP server 'mcp-clickhouse' server.py:2506
+                             with transport 'stdio'                             
+2026-08-30 07:20:42,029 - docket.worker - INFO - Starting worker 'MacBook-Pro-5.local#80545' with the following tasks:
+2026-08-30 07:20:42,029 - docket.worker - INFO - * trace(message: str, ...)
+2026-08-30 07:20:42,029 - docket.worker - INFO - * fail(message: str, ...)
+2026-08-30 07:20:42,029 - docket.worker - INFO - * sleep(seconds: float, ...)
+2026-08-30 07:20:42,035 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/features/_feature_decorator.py:71: UserWarning: [EXPERIMENTAL] feature FeatureName.BASE_AUTHENTICATED_TOOL is enabled.
+  check_feature_enabled()
+/Users/edycu/Hackathon/devpost/devpost-agentic-cinema/flashframe/build/.venv/lib/python3.13/site-packages/google/adk/models/llm_request.py:298: UserWarning: [EXPERIMENTAL] feature FeatureName.JSON_SCHEMA_FOR_FUNC_DECL is enabled.
+  declaration = tool._get_declaration()
+Proof 6: ADK Loop Decisions
+Driving agent with borderline input...
+Event received: Event
+
+>>> FUNCTION CALL: resample_frames(scan_id=0e403ae2-2ca4-45be-8270-5b2cddc5d9e7, 1000-1074, 60fps) <<<
+
+Event received: Event
+Event received: Event
