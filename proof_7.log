@@ -1,0 +1,7 @@
+Proof 7 - Case A: Confirm a true positive
+Case A Verdict:
+passed=False frame_start=739 frame_end=761 measured_value=6.0 threshold_value=3.0 cause='Rapid alternating transitions between dark and light full-screen backgrounds creating a strobe effect at approximately 6 Hz.' remediation='Reduce the flash frequency to 3 flashes per second or fewer, or decrease the brightness/contrast difference between alternating frames.'
+
+Proof 7 - Case B: Clear a false positive
+Case B Verdict:
+passed=True frame_start=0 frame_end=47 measured_value=17.5 threshold_value=25.0 cause='The central white square flashes at approximately 6 Hz, but its total screen coverage is approximately 17.5%, which is below the 25% screen area threshold required to constitute a photosensitivity hazard.' remediation='No remediation required as the flashing element covers less than 25% of the screen area.'
