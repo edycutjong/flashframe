@@ -1,0 +1,15 @@
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+Proof 5: Gemini Adjudicates
+Gemini response:
+{
+  "passed": false,
+  "frame_start": 739,
+  "frame_end": 760,
+  "measured_value": 6.25,
+  "threshold_value": 3.0,
+  "cause": "Full-screen strobe of 6.25 flashes/sec exceeding the allowable limit of 3 flashes/sec.",
+  "remediation": "Reduce the frequency of the flashes to 3 flashes per second or less, or reduce the intensity of the luminance changes."
+}
+
+Parsed verdict object:
+passed=False frame_start=739 frame_end=760 measured_value=6.25 threshold_value=3.0 cause='Full-screen strobe of 6.25 flashes/sec exceeding the allowable limit of 3 flashes/sec.' remediation='Reduce the frequency of the flashes to 3 flashes per second or less, or reduce the intensity of the luminance changes.'
