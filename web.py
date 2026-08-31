@@ -96,6 +96,9 @@ async def run_actual_pipeline(scan_id, video_path):
 
 @app.post("/upload")
 async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(None), seed_clip: str = Form(None)):
+    if not seed_clip and (not file or not file.filename):
+        return HTMLResponse(content="No video was provided.", status_code=400)
+
     scan_id = str(uuid.uuid4())
     scan_status_dict[scan_id] = {
         "status": "running",
@@ -107,7 +110,14 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
             {"name": "Certify", "status": "pending"}
         ]
     }
-    video_path = f"assets/{seed_clip}.mp4" if seed_clip else "test_clip.mp4"
+    
+    if seed_clip:
+        video_path = f"assets/{seed_clip}.mp4"
+    else:
+        video_path = f"{scan_id}_{file.filename}"
+        with open(video_path, "wb") as f_out:
+            f_out.write(await file.read())
+            
     background_tasks.add_task(run_actual_pipeline, scan_id, video_path)
     return RedirectResponse(url=f"/scan/{scan_id}", status_code=303)
 

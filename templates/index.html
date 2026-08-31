@@ -48,7 +48,9 @@
         document.querySelectorAll('form').forEach(form => {
             form.addEventListener('submit', () => {
                 const btns = form.querySelectorAll('button[type="submit"]');
-                btns.forEach(b => { b.disabled = true; b.textContent = 'Scanning...'; });
+                setTimeout(() => {
+                    btns.forEach(b => { b.disabled = true; b.textContent = 'Scanning...'; });
+                }, 0);
                 
                 setTimeout(() => {
                     let msgEl = document.getElementById('slow-status');
