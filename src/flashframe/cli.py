@@ -205,7 +205,7 @@ async def run_pipeline(video_path):
         from google.genai.errors import APIError
         for attempt in range(5):
             try:
-                v = run_adjudicate(video_path, frame_start, frame_end, model=model_name, api_key=api_key)
+                v = run_adjudicate(video_path, frame_start, frame_end, model=model_name)
                 return {"passed": v.passed, "cause": v.cause, "remediation": v.remediation, "gemini_estimated_rate": v.measured_value, "frame_start": v.frame_start, "frame_end": v.frame_end}
             except APIError as e:
                 if e.code in [429, 503]:
