@@ -1461,3 +1461,237 @@ async def test_pipeline_agent_wiring(harness, monkeypatch, tmp_path):
     assert "scan_id: test_scan_id" in text
     assert "frame_start: 200" in text
     assert "frame_end: 220" in text
+
+
+
+def test_cli_pipeline_command(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import cli
+    from click.testing import CliRunner
+    
+    passed_args = []
+    async def mock_run_pipeline(video_path):
+        passed_args.append(video_path)
+        
+    with patch("flashframe.cli.run_pipeline", mock_run_pipeline):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["pipeline", "my_test_vid.mp4"])
+        
+    assert result.exit_code == 0
+    assert passed_args == ["my_test_vid.mp4"]
+
+@pytest.mark.asyncio
+async def test_resample_frames_cap_and_passthrough(harness, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    
+    extracted_args = []
+    def fake_extraction2(video_path, fps_override=None, frame_start=None, frame_end=None):
+        extracted_args.append((video_path, fps_override, frame_start, frame_end))
+        return "new_scan_id_123"
+        
+    monkeypatch.setattr("flashframe.cli.run_extraction", fake_extraction2)
+    
+    await run_pipeline("vid.mp4")
+    
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    resample_frames = tools["resample_frames"]
+    
+    extracted_args.clear()
+    res1 = await resample_frames(frame_start=10, frame_end=20, target_fps=30)
+    assert res1["status"] == "success"
+    assert res1["new_scan_id"] == "new_scan_id_123"
+    assert extracted_args == [("vid.mp4", 30, 10, 20)]
+    
+    extracted_args.clear()
+    res2 = await resample_frames(frame_start=10, frame_end=20, target_fps=60)
+    assert res2["status"] == "success"
+    assert extracted_args == [("vid.mp4", 60, 10, 20)]
+    
+    extracted_args.clear()
+    res3 = await resample_frames(frame_start=10, frame_end=20, target_fps=120)
+    assert res3["status"] == "error"
+    assert res3["message"] == "Max resample iterations reached."
+    assert extracted_args == []
+
+@pytest.mark.asyncio
+async def test_resample_frames_rate_updates(harness, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    cert_args = []
+    async def fake_write_certificate(tool, scan_id, passed, frame_start, frame_end, measured, cause, remediation, gem_rate):
+        cert_args.append(measured)
+        return {}
+    monkeypatch.setattr("flashframe.certify.write_certificate", fake_write_certificate)
+
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    harness.detect_result = '[{"flashes": 6.1}]'
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    await tools["certify"]("s", True, 10, 20, "c", "r", 0.0)
+    assert cert_args[-1] == 6.1
+
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    harness.detect_result = '{"flashes": 7.2}'
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    await tools["certify"]("s", True, 10, 20, "c", "r", 0.0)
+    assert cert_args[-1] == 7.2
+    
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    harness.detect_result = '[[0, 1, 8.3]]'
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    await tools["certify"]("s", True, 10, 20, "c", "r", 0.0)
+    assert cert_args[-1] == 8.3
+
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    harness.detect_result = 'not json'
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    await tools["certify"]("s", True, 10, 20, "c", "r", 0.0)
+    assert cert_args[-1] == 5.5
+
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    res = await tools["resample_frames"](frame_start=10, frame_end=20, target_fps=30)
+    assert res == {"status": "error", "message": "Max resample iterations reached."}
+
+@pytest.mark.asyncio
+async def test_final_adjudicate_happy_path_and_provenance(harness, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    final_adjudicate = tools["final_adjudicate"]
+    
+    class FakeVerdict:
+        passed = True
+        cause = "test_cause"
+        remediation = "test_rem"
+        measured_value = 1.23
+        frame_start = 10
+        frame_end = 20
+
+    def fake_run_adjudicate(*args, **kwargs):
+        return FakeVerdict()
+        
+    monkeypatch.setattr("flashframe.adjudicate.run_adjudicate", fake_run_adjudicate)
+    
+    res = final_adjudicate(frame_start=10, frame_end=20)
+    assert res["gemini_estimated_rate"] == 1.23
+    assert res["passed"] is True
+    assert res["cause"] == "test_cause"
+    assert res["remediation"] == "test_rem"
+    assert res["frame_start"] == 10
+    assert res["frame_end"] == 20
+    
+    for k in res.keys():
+        assert "measured" not in k.lower()
+
+@pytest.mark.asyncio
+async def test_final_adjudicate_retries_and_errors(harness, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    final_adjudicate = tools["final_adjudicate"]
+    
+    from google.genai.errors import APIError
+    
+    def fake_run_adjudicate_500(*args, **kwargs):
+        raise APIError(500, {"error": {"message": "500 err", "status": "INTERNAL"}})
+    
+    monkeypatch.setattr("flashframe.adjudicate.run_adjudicate", fake_run_adjudicate_500)
+    with pytest.raises(APIError):
+        final_adjudicate(frame_start=10, frame_end=20)
+        
+    sleeps = []
+    def fake_sleep(s):
+        sleeps.append(s)
+        
+    monkeypatch.setattr("time.sleep", fake_sleep)
+    
+    attempt_count = 0
+    def fake_run_adjudicate_retry(*args, **kwargs):
+        nonlocal attempt_count
+        attempt_count += 1
+        raise APIError(429, {"error": {"message": "rate limit", "status": "RESOURCE_EXHAUSTED"}})
+        
+    monkeypatch.setattr("flashframe.adjudicate.run_adjudicate", fake_run_adjudicate_retry)
+    
+    res = final_adjudicate(frame_start=10, frame_end=20)
+    assert res == {"error": "Exceeded maximum retries for Gemini API"}
+    assert attempt_count == 5
+    assert sleeps == [20, 40, 60, 80, 100]
+
+@pytest.mark.asyncio
+async def test_certify_args_and_output(harness, monkeypatch, capsys, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 4.5678}'
+    await run_pipeline("vid.mp4")
+    
+    tools = {t.func.__name__: t.func for t in harness.agent_kwargs["tools"]}
+    certify = tools["certify"]
+    
+    called_args = {}
+    async def fake_write_certificate(tool, scan_id, passed, frame_start, frame_end, measured, cause, remediation, gem_rate):
+        called_args.update({
+            "measured": measured,
+            "gem_rate": gem_rate
+        })
+        return {"cert": "fake"}
+        
+    monkeypatch.setattr("flashframe.certify.write_certificate", fake_write_certificate)
+    
+    res = await certify("scan1", True, 200, 220, "test_cause", "test_rem", 1.23)
+    assert res == {"cert": "fake"}
+    
+    assert called_args["measured"] == 4.5678
+    assert called_args["gem_rate"] == 1.23
+    
+    out = capsys.readouterr().out
+    assert "MEASURED (ClickHouse)          4.57 flashes/sec" in out
+    assert "ADJUDICATED (Gemini)           PASS — test_cause" in out
+
