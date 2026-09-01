@@ -841,3 +841,272 @@ def test_extract_parser_missing_files_and_defaults(monkeypatch, tmp_path):
     assert lines[1] == f"{scan_id},0,0.0,0,111.0,0.0,0.0,0.0,0.0"
     # tile 5: full
     assert lines[2] == f"{scan_id},0,0.0,5,222.0,255.0,0.0,128.0,0.5"
+from unittest.mock import MagicMock
+
+class FakeSubprocessRun:
+    def __init__(self, expected_bytes=b"clipbytes"):
+        self.expected_bytes = expected_bytes
+        self.calls = []
+        
+    def __call__(self, cmd, **kwargs):
+        self.calls.append((cmd, kwargs))
+        with open("span.mp4", "wb") as f:
+            f.write(self.expected_bytes)
+
+class FakeGenAIClient:
+    def __init__(self, responses, assert_func=None):
+        self.responses = responses
+        self.assert_func = assert_func
+        self.calls = []
+        self.keys_used = []
+        
+    def __call__(self, api_key=None):
+        self.keys_used.append(api_key)
+        client_mock = MagicMock()
+        
+        def generate_content(*args, **kwargs):
+            self.calls.append(kwargs)
+            if self.assert_func:
+                self.assert_func(kwargs)
+            
+            resp_spec = self.responses.pop(0)
+            if isinstance(resp_spec, Exception):
+                raise resp_spec
+            
+            mock_resp = MagicMock()
+            mock_resp.text = resp_spec
+            return mock_resp
+            
+        client_mock.models.generate_content = generate_content
+        return client_mock
+
+def test_adjudicate_explicit_key(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEYS", "wrong_key1,wrong_key2")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    fake_client = FakeGenAIClient([valid_json])
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate, Verdict
+    res = run_adjudicate("vid.mp4", 10, 20, api_key="explicit_key")
+    
+    assert fake_client.keys_used == ["explicit_key"]
+    assert res.passed is True
+
+def test_adjudicate_env_keys(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEYS", " k1 , ,k2 ")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    from google.genai import errors
+    err429 = errors.APIError(429, {"message": "429 Too Many Requests"})
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    fake_client = FakeGenAIClient([err429, valid_json])
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate, Verdict
+    res = run_adjudicate("vid.mp4", 10, 20)
+    
+    assert fake_client.keys_used == ["k1", "k2"]
+    assert res.passed is True
+
+def test_adjudicate_single_key_and_model(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "single_key")
+    monkeypatch.setenv("GEMINI_MODEL", "my-test-model")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    
+    def assert_model(kwargs):
+        assert kwargs["model"] == "my-test-model"
+        
+    fake_client = FakeGenAIClient([valid_json], assert_func=assert_model)
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate, Verdict
+    res = run_adjudicate("vid.mp4", 10, 20)
+    
+    assert fake_client.keys_used == ["single_key"]
+    assert res.passed is True
+
+def test_adjudicate_credentials_file(monkeypatch, tmp_path):
+    import json, os
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    
+    cred_dir = tmp_path / ".config" / "gemini"
+    cred_dir.mkdir(parents=True)
+    cred_path = cred_dir / "credentials.json"
+    
+    creds = {
+        "keys": [{"key": "key0"}, {"key": "key1_target"}, {"key": "key2"}],
+        "model": "model-from-file"
+    }
+    with open(cred_path, "w") as f:
+        json.dump(creds, f)
+        
+    def mock_expanduser(path):
+        if path == '~/.config/gemini/credentials.json':
+            return str(cred_path)
+        return os.path.expanduser_orig(path)
+        
+    monkeypatch.setattr(os.path, 'expanduser_orig', os.path.expanduser, raising=False)
+    monkeypatch.setattr(os.path, 'expanduser', mock_expanduser)
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    
+    def assert_model(kwargs):
+        assert kwargs["model"] == "model-from-file"
+        
+    fake_client = FakeGenAIClient([valid_json], assert_func=assert_model)
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate, Verdict
+    res = run_adjudicate("vid.mp4", 10, 20)
+    
+    assert fake_client.keys_used == ["key1_target"]
+
+def test_adjudicate_no_credentials(monkeypatch, tmp_path):
+    import os, pytest
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    
+    def mock_expanduser(path):
+        if path == '~/.config/gemini/credentials.json':
+            return str(tmp_path / "nonexistent.json")
+        return path
+        
+    monkeypatch.setattr(os.path, 'expanduser', mock_expanduser)
+    
+    from flashframe.adjudicate import run_adjudicate
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY environment variable is missing"):
+        run_adjudicate("vid.mp4", 10, 20)
+
+def test_adjudicate_span_ffmpeg_and_request(monkeypatch, tmp_path):
+    import os
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEY", "key")
+    
+    with open("span.mp4", "w") as f:
+        f.write("stale data")
+        
+    expected_bytes = b"new_clip_bytes"
+    
+    class AssertingSubprocessRun:
+        def __call__(self, cmd, **kwargs):
+            assert not os.path.exists("span.mp4")
+            with open("span.mp4", "wb") as f:
+                f.write(expected_bytes)
+                
+            assert cmd[0] == 'ffmpeg'
+            assert '-ss' in cmd
+            assert cmd[cmd.index('-ss') + 1] == str(10 / 25.0)
+            assert '-t' in cmd
+            assert cmd[cmd.index('-t') + 1] == str((20 - 10 + 1) / 25.0)
+            assert '-c:v' in cmd
+            assert cmd[cmd.index('-c:v') + 1] == 'libx264'
+            assert kwargs.get("check") is True
+            
+    fake_sp = AssertingSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    from flashframe.adjudicate import Verdict
+    def assert_request(kwargs):
+        contents = kwargs["contents"]
+        blob_part = contents[0]
+        text_part = contents[1]
+        
+        assert blob_part.inline_data.data == expected_bytes
+        assert blob_part.video_metadata.fps == 24
+        assert "10" in text_part.text
+        assert "20" in text_part.text
+        
+        cfg = kwargs["config"]
+        assert cfg.temperature == 0.0
+        assert cfg.response_mime_type == "application/json"
+        assert cfg.response_schema == Verdict
+        
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    fake_client = FakeGenAIClient([valid_json], assert_func=assert_request)
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate
+    res = run_adjudicate("vid.mp4", 10, 20)
+    assert res.passed is True
+
+def test_adjudicate_key_rotation_429(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEYS", "k1,k2")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    from google.genai import errors
+    err429 = errors.APIError(429, {"message": "RESOURCE_EXHAUSTED"})
+    valid_json = '{"passed": true, "frame_start": 10, "frame_end": 20, "measured_value": 2.5, "threshold_value": 3.0, "cause": "test", "remediation": "test"}'
+    
+    fake_client = FakeGenAIClient([err429, valid_json])
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate
+    res = run_adjudicate("vid.mp4", 10, 20)
+    assert fake_client.keys_used == ["k1", "k2"]
+    assert res.passed is True
+
+def test_adjudicate_non_429_reraises(monkeypatch, tmp_path):
+    import pytest
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEYS", "k1,k2")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    from google.genai import errors
+    err500 = errors.APIError(500, {"message": "Internal Server Error"})
+    fake_client = FakeGenAIClient([err500])
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate
+    with pytest.raises(errors.APIError) as excinfo:
+        run_adjudicate("vid.mp4", 10, 20)
+        
+    assert fake_client.keys_used == ["k1"]
+    assert "Internal Server Error" in str(excinfo.value)
+
+def test_adjudicate_all_keys_exhausted(monkeypatch, tmp_path):
+    import pytest
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEYS", "k1,k2")
+    
+    fake_sp = FakeSubprocessRun()
+    monkeypatch.setattr("flashframe.adjudicate.subprocess.run", fake_sp)
+    
+    from google.genai import errors
+    err429_1 = errors.APIError(429, {"message": "429 error 1"})
+    err429_2 = errors.APIError(429, {"message": "429 error 2"})
+    
+    fake_client = FakeGenAIClient([err429_1, err429_2])
+    monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
+    
+    from flashframe.adjudicate import run_adjudicate
+    with pytest.raises(errors.APIError) as excinfo:
+        run_adjudicate("vid.mp4", 10, 20)
+        
+    assert fake_client.keys_used == ["k1", "k2"]
+    assert "error 2" in str(excinfo.value)
+
