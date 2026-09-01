@@ -1198,3 +1198,266 @@ def test_seed_default(monkeypatch, tmp_path):
     assert os.path.exists(script_path)
     assert called_args[0][1] is True
 
+
+
+class PipelineHarness:
+    def __init__(self):
+        self.agent_kwargs = None
+        self.detect_result = "[]"
+        self.runner_kwargs = None
+        self.mcp_params = None
+
+@pytest.fixture
+def harness(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    
+    h = PipelineHarness()
+    
+    class FakeMcpToolset:
+        def __init__(self, connection_params):
+            h.mcp_params = connection_params
+        async def get_tools(self):
+            class DummyTool:
+                name = "run_query"
+            return [DummyTool()]
+            
+    class FakeLlmAgent:
+        def __init__(self, **kwargs):
+            h.agent_kwargs = kwargs
+            
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            h.runner_kwargs = kwargs
+        async def run_async(self, **kwargs):
+            # Record kwargs passed to run_async
+            h.runner_kwargs.update(kwargs)
+            class FakeEvent:
+                tool_call = True
+            yield FakeEvent()
+            
+    def fake_extraction(video_path, **kwargs):
+        return "test_scan_id"
+        
+    async def fake_setup(tool, scan_id, video_path, src_fps, tgt_fps):
+        pass
+        
+    async def fake_detect(tool, scan_id, fps):
+        return h.detect_result
+
+    monkeypatch.setattr("flashframe.cli.McpToolset", FakeMcpToolset)
+    monkeypatch.setattr("flashframe.cli.LlmAgent", FakeLlmAgent)
+    monkeypatch.setattr("flashframe.cli.Runner", FakeRunner)
+    monkeypatch.setattr("flashframe.cli.run_extraction", fake_extraction)
+    monkeypatch.setattr("flashframe.cli.setup_db_and_ingest", fake_setup)
+    monkeypatch.setattr("flashframe.cli.detect_violations", fake_detect)
+    
+    return h
+
+@pytest.mark.asyncio
+async def test_pipeline_missing_credentials(harness, monkeypatch):
+    from flashframe.cli import run_pipeline
+    monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
+    monkeypatch.delenv("CLICKHOUSE_USER", raising=False)
+    monkeypatch.delenv("CLICKHOUSE_PASSWORD", raising=False)
+    
+    with pytest.raises(RuntimeError) as exc:
+        await run_pipeline("vid.mp4")
+        
+    msg = str(exc.value)
+    assert "CLICKHOUSE_HOST" in msg
+    assert "CLICKHOUSE_USER" in msg
+    assert "CLICKHOUSE_PASSWORD" in msg
+
+@pytest.mark.asyncio
+async def test_pipeline_mcp_env(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "localhost")
+    monkeypatch.setenv("CLICKHOUSE_USER", "default")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "pass")
+    
+    monkeypatch.delenv("CLICKHOUSE_DATABASE", raising=False)
+    
+    gemini_dir = tmp_path / ".config" / "gemini"
+    gemini_dir.mkdir(parents=True, exist_ok=True)
+    with open(gemini_dir / "credentials.json", "w") as f:
+        json.dump({"keys": [{}, {}, {}, {"key": "test_key"}]}, f)
+
+    await run_pipeline("vid.mp4")
+    env = harness.mcp_params.server_params.env
+    assert env["CLICKHOUSE_DATABASE"] == "flashframe"
+    assert env["CLICKHOUSE_ALLOW_WRITE_ACCESS"] == "true"
+    assert env["CLICKHOUSE_ALLOW_DROP"] == "true"
+    assert env["CHDB_ENABLED"] == "true"
+    
+    monkeypatch.setenv("CLICKHOUSE_DATABASE", "custom_db")
+    await run_pipeline("vid.mp4")
+    env2 = harness.mcp_params.server_params.env
+    assert env2["CLICKHOUSE_DATABASE"] == "custom_db"
+
+@pytest.mark.asyncio
+async def test_pipeline_mcp_command(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "localhost")
+    monkeypatch.setenv("CLICKHOUSE_USER", "default")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "pass")
+    monkeypatch.setenv("GEMINI_API_KEY", "env_key")
+    
+    await run_pipeline("vid.mp4")
+    
+    import sys
+    assert harness.mcp_params.server_params.command == sys.executable
+
+@pytest.mark.asyncio
+async def test_pipeline_gemini_key_resolution_env(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "localhost")
+    monkeypatch.setenv("CLICKHOUSE_USER", "default")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "pass")
+    
+    monkeypatch.setenv("GEMINI_API_KEY", "env_key")
+    monkeypatch.setenv("GEMINI_MODEL", "custom-model")
+    harness.detect_result = '[{"frame_start": 10, "frame_end": 20, "flashes": 5.0}]'
+    
+    await run_pipeline("vid.mp4")
+    assert harness.agent_kwargs["model"] == "custom-model"
+    assert os.environ["GEMINI_API_KEY"] == "env_key"
+    
+@pytest.mark.asyncio
+async def test_pipeline_gemini_key_resolution_file(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "localhost")
+    monkeypatch.setenv("CLICKHOUSE_USER", "default")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "pass")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    
+    harness.detect_result = '[{"frame_start": 10, "frame_end": 20, "flashes": 5.0}]'
+    
+    gemini_dir = tmp_path / ".config" / "gemini"
+    gemini_dir.mkdir(parents=True, exist_ok=True)
+    with open(gemini_dir / "credentials.json", "w") as f:
+        json.dump({
+            "keys": [{"key": "k0"}, {"key": "k1"}, {"key": "k2"}, {"key": "k3"}],
+            "model": "file-model"
+        }, f)
+        
+    await run_pipeline("vid.mp4")
+    
+    assert os.environ["GEMINI_API_KEY"] == "k3"
+    assert harness.agent_kwargs["model"] == "file-model"
+    
+@pytest.mark.asyncio
+async def test_pipeline_gemini_key_resolution_missing(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "localhost")
+    monkeypatch.setenv("CLICKHOUSE_USER", "default")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "pass")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY environment variable is missing and fallback"):
+        await run_pipeline("vid.mp4")
+
+@pytest.mark.asyncio
+async def test_pipeline_span_parsing_list_of_dicts(harness, monkeypatch, capsys):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = '[{"frame_start": 100, "frame_end": 120, "flashes": 4.5}]'
+    await run_pipeline("vid.mp4")
+    
+    out = capsys.readouterr().out
+    assert "Flagged span 100-120 (4.5 flashes/sec)" in out
+    
+    assert "frame_start: 100" in harness.runner_kwargs["new_message"].parts[0].text
+    assert "frame_end: 120" in harness.runner_kwargs["new_message"].parts[0].text
+
+@pytest.mark.asyncio
+async def test_pipeline_span_parsing_dict(harness, monkeypatch, capsys):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = '{"frame_start": 101, "frame_end": 121, "flashes": 4.6}'
+    await run_pipeline("vid.mp4")
+    
+    out = capsys.readouterr().out
+    assert "Flagged span 101-121 (4.6 flashes/sec)" in out
+
+@pytest.mark.asyncio
+async def test_pipeline_span_parsing_list_of_lists(harness, monkeypatch, capsys):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = '[[102, 122, 4.7, 0.9, 0]]'
+    await run_pipeline("vid.mp4")
+    
+    out = capsys.readouterr().out
+    assert "Flagged span 102-122 (4.7 flashes/sec)" in out
+
+@pytest.mark.asyncio
+async def test_pipeline_span_parsing_unparseable(harness, monkeypatch, capsys):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = 'not json'
+    await run_pipeline("vid.mp4")
+    
+    out = capsys.readouterr().out
+    assert "No violations detected. PASS." in out
+    assert harness.agent_kwargs is None
+
+@pytest.mark.asyncio
+async def test_pipeline_span_parsing_empty(harness, monkeypatch, capsys):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    
+    harness.detect_result = '[]'
+    await run_pipeline("vid.mp4")
+    
+    out = capsys.readouterr().out
+    assert "No violations detected. PASS." in out
+    assert harness.agent_kwargs is None
+
+@pytest.mark.asyncio
+async def test_pipeline_agent_wiring(harness, monkeypatch, tmp_path):
+    from flashframe.cli import run_pipeline
+    monkeypatch.setenv("CLICKHOUSE_HOST", "h")
+    monkeypatch.setenv("CLICKHOUSE_USER", "u")
+    monkeypatch.setenv("CLICKHOUSE_PASSWORD", "p")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setenv("GEMINI_MODEL", "my-test-model")
+    
+    harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
+    await run_pipeline("vid.mp4")
+    
+    assert harness.agent_kwargs is not None
+    assert harness.agent_kwargs["model"] == "my-test-model"
+    tools = harness.agent_kwargs["tools"]
+    assert len(tools) == 3
+    tool_names = [t.func.__name__ for t in tools]
+    assert "resample_frames" in tool_names
+    assert "final_adjudicate" in tool_names
+    assert "certify" in tool_names
+    
+    assert harness.runner_kwargs is not None
+    assert harness.runner_kwargs["app_name"] == "flashframe"
+    msg = harness.runner_kwargs["new_message"]
+    text = msg.parts[0].text
+    assert "scan_id: test_scan_id" in text
+    assert "frame_start: 200" in text
+    assert "frame_end: 220" in text
