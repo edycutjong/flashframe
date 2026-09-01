@@ -20,7 +20,7 @@
 - TOTAL p50 0.437 s / p95 0.478 s
 - Accuracy: manifest offset 103127 → detected span 103127; control feature 0 false positives
 - `hard_fail_strobe.mp4`: ground truth FAIL frames 739-760 @ 6.25 flashes/sec → observed FAIL frames 740-760 @ 6.25, exact
-- Test suite: 101 tests, 98 pass with no credentials at all, 100% statement coverage on 621 statements
+- Test suite: 99 tests, 96 pass with no credentials at all, 100% statement coverage on 604 statements
 
 ## The Reproduce Command
 
@@ -34,7 +34,7 @@ python -m flashframe.cli
 
 ### Credential-Free Test Suite
 The product itself requires live ClickHouse + Gemini credentials. The test suite does not:
-- 98 of 101 tests pass with no credentials at all on a fresh clone.
+- 96 of 99 tests pass with no credentials at all on a fresh clone.
 
 ## Honest Limitations
 
