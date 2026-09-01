@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .bg { fill: none; stroke: #8A94A6; stroke-width: 12; rx: 64; opacity: 0.2; }
+    .bg { fill: none; stroke: #8A94A6; stroke-width: 12; opacity: 0.2; }
     .grid { stroke: #8A94A6; stroke-width: 2; stroke-dasharray: 8 8; opacity: 0.2; }
     .trace { fill: none; stroke: #8A94A6; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
     .trace-amber { fill: none; stroke: #F0B429; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
@@ -31,7 +31,7 @@
     }
   </style>
 
-  <rect class="bg" x="32" y="32" width="448" height="448" />
+  <rect class="bg" x="32" y="32" width="448" height="448" rx="64" />
   
   <line class="grid" x1="64" y1="170" x2="448" y2="170" />
   <line class="grid" x1="64" y1="256" x2="448" y2="256" />
