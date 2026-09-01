@@ -304,3 +304,151 @@ def test_report_source_in_assets(client, monkeypatch, tmp_path):
     
     res = client.get("/report/1234")
     assert res.status_code == 200
+
+def test_lifespan_warmup_run_async_error(monkeypatch):
+    class BrokenMcpRunAsync:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def get_tools(self):
+            class BrokenTool:
+                name = "run_query"
+                async def run_async(self, args, tool_context=None):
+                    raise Exception("Run async warmup failed")
+            return [BrokenTool()]
+    monkeypatch.setattr("web.McpToolset", BrokenMcpRunAsync)
+    with TestClient(app) as c:
+        res = c.get("/")
+        assert res.status_code == 200
+
+def test_report_cert_shape_text(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": False, "measured": 77.7, "threshold": 3.0, "frame_start":0, "frame_end":0}],
+        metrics_ret=[],
+        meta_ret=[],
+        cert_type="text"
+    )]
+    res = client.get("/report/1234")
+    assert b"77.7 Hz" in res.content
+
+def test_report_cert_shape_list(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": False, "measured": 88.8, "threshold": 3.0, "frame_start":0, "frame_end":0}],
+        metrics_ret=[],
+        meta_ret=[],
+        cert_type="list"
+    )]
+    res = client.get("/report/1234")
+    assert b"88.8 Hz" in res.content
+
+def test_report_cert_shape_str(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": False, "measured": 99.9, "threshold": 3.0, "frame_start":0, "frame_end":0}],
+        metrics_ret=[],
+        meta_ret=[],
+        cert_type="str"
+    )]
+    res = client.get("/report/1234")
+    assert b"99.9 Hz" in res.content
+
+def test_report_metrics_shape_list(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True, "measured": 1.0, "threshold": 3.0, "frame_start":0, "frame_end":0}],
+        metrics_ret=[{"frame_idx": 12345, "yavg": 100}],
+        meta_ret=[],
+        metrics_type="list"
+    )]
+    res = client.get("/report/1234")
+    assert b"12345" in res.content
+
+def test_report_metrics_shape_dict(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True, "measured": 1.0, "threshold": 3.0, "frame_start":0, "frame_end":0}],
+        metrics_ret=[{"frame_idx": 54321, "yavg": 100}],
+        meta_ret=[],
+        metrics_type="dict"
+    )]
+    res = client.get("/report/1234")
+    assert b"54321" in res.content
+
+def test_report_meta_shape_text(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret=[{"source_file": "MetaText.mp4"}],
+        meta_type="text"
+    )]
+    res = client.get("/report/1234")
+    assert b"MetaText.mp4" in res.content
+
+def test_report_meta_shape_str(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret=[{"source_file": "MetaStr.mp4"}],
+        meta_type="str"
+    )]
+    res = client.get("/report/1234")
+    assert b"MetaStr.mp4" in res.content
+
+def test_report_meta_bare_list(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret=[{"source_file": "bare_list.mp4"}],
+        meta_type="std"
+    )]
+    res = client.get("/report/1234")
+    assert b"bare_list.mp4" in res.content
+
+def test_report_meta_empty(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret=[],
+        meta_type="std"
+    )]
+    res = client.get("/report/1234")
+    assert b"hard_fail_strobe.mp4" in res.content
+
+def test_report_source_unknown_fallback(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret=[{"source_file": "unknown"}]
+    )]
+    res = client.get("/report/1234")
+    assert b"hard_fail_strobe.mp4" in res.content
+    assert b"Source footage unavailable for inline preview." not in res.content
+
+def test_report_filmstrip_unavailable_note(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": False, "frame_start": 0, "frame_end": 10, "measured": 4.0}],
+        metrics_ret=[],
+        meta_ret=[{"source_file": "does_not_exist_at_all.mp4"}]
+    )]
+    res = client.get("/report/1234")
+    assert b"Source footage unavailable for inline preview." in res.content
+
+
+def test_report_meta_with_columns(client):
+    global GLOBAL_TOOLS
+    GLOBAL_TOOLS = [MockQueryTool(
+        cert_ret=[{"passed": True}],
+        metrics_ret=[],
+        meta_ret={"columns": ["source_file", "source_fps"], "rows": [["col_test.mp4", 30.0]]},
+        meta_type="std"
+    )]
+    res = client.get("/report/1234")
+    assert b"col_test.mp4" in res.content
+
