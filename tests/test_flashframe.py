@@ -1110,3 +1110,91 @@ def test_adjudicate_all_keys_exhausted(monkeypatch, tmp_path):
     assert fake_client.keys_used == ["k1", "k2"]
     assert "error 2" in str(excinfo.value)
 
+def test_seed_feature(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    import subprocess
+    import random
+    from click.testing import CliRunner
+    from flashframe.cli import cli
+
+    # 1. Patch random.randint to a fixed value.
+    monkeypatch.setattr(random, "randint", lambda a, b: 100) # Say frame 100
+
+    # 2. Patch subprocess.run
+    called_args = []
+    def mock_run(args, check=False):
+        called_args.append((args, check))
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    # 3. Run the command using CliRunner
+    runner = CliRunner()
+    result = runner.invoke(cli, ["seed", "--feature"])
+
+    # 4. Assert exit code and output
+    assert result.exit_code == 0
+    assert "Generating feature-length benchmark clip..." in result.output
+    assert "Chosen offset" in result.output
+    assert "Feature clip generated: bench_feature.mp4" in result.output
+
+    # 5. Assert manifest.json contents
+    import json
+    with open("manifest.json", "r") as f:
+        manifest = json.load(f)
+    
+    assert manifest["strobe_start_frame"] == 100
+    assert manifest["strobe_start_time"] == 100 / 25.0
+    assert manifest["strobe_duration_frames"] == int(0.88 * 25)
+
+    # 6. Assert generate_feature.sh segment math
+    with open("generate_feature.sh", "r") as f:
+        script = f.read()
+    
+    import re
+    durations = re.findall(r'd=([0-9.]+)', script)
+    assert len(durations) == 3
+    seg_a = float(durations[0])
+    seg_b = float(durations[1])
+    seg_c = float(durations[2])
+    
+    import math
+    assert math.isclose(seg_a + seg_b + seg_c, 5529.6, abs_tol=1e-5)
+    assert seg_b == 0.88
+
+    # 7. Assert subprocess was called correctly
+    assert len(called_args) == 1
+    assert called_args[0][0] == ["bash", "generate_feature.sh"]
+    assert called_args[0][1] is True
+
+def test_seed_default(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    import subprocess
+    import os
+    from click.testing import CliRunner
+    from flashframe.cli import cli
+    
+    called_args = []
+    def mock_run(args, check=False):
+        called_args.append((args, check))
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    
+    runner = CliRunner()
+    result = runner.invoke(cli, ["seed"])
+    
+    assert result.exit_code == 0
+    assert "Running seed clip generation..." in result.output
+    assert "Clips generated." in result.output
+    
+    assert len(called_args) == 1
+    cmd = called_args[0][0]
+    assert cmd[0] == "bash"
+    script_path = cmd[1]
+    
+    import flashframe.cli
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(flashframe.cli.__file__)))
+    expected_path = os.path.join(repo_root, "generate_seed_clips.sh")
+    assert script_path == expected_path
+    
+    # Assert path exists on disk
+    assert os.path.exists(script_path)
+    assert called_args[0][1] is True
+
