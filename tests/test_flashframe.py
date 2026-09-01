@@ -742,3 +742,102 @@ def test_extract_seek_arithmetic(monkeypatch, tmp_path):
         
     assert "-ss" not in fake.argv
     assert "-t" not in fake.argv
+
+def test_extract_parser_frame_index_formulas(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    # 0.2s is exactly 5 frames at 25fps.
+    stats_content = (
+        "frame:0    pts:0       pts_time:0.2\n"
+        "lavfi.signalstats.YAVG=100\n"
+        "lavfi.signalstats.VAVG=204\n"
+    )
+    fake = MockFfmpegRunner({0: stats_content})
+    from flashframe.extract import run_extraction
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        scan_id1 = run_extraction("vid.mp4", frame_start=None)
+        
+    with open("frame_metrics.csv") as f:
+        lines = f.read().splitlines()
+    assert lines[0] == "scan_id,frame_idx,pts_time,tile,yavg,ymax,ymin,satavg,red_ratio"
+    # frame_idx for pts_time=0.2, frame_start=None is int(0.2*25.0) = 5
+    # red_ratio for 204 is 0.8
+    # yavg = 100, defaults = 0
+    assert lines[1] == f"{scan_id1},5,0.2,0,100.0,0.0,0.0,0.0,0.8"
+
+    # Now with frame_start = 100
+    with patch("flashframe.extract.subprocess.run", fake):
+        scan_id2 = run_extraction("vid.mp4", frame_start=100, frame_end=124)
+        
+    with open("frame_metrics.csv") as f:
+        lines = f.read().splitlines()
+    assert lines[1] == f"{scan_id2},105,0.2,0,100.0,0.0,0.0,0.0,0.8"
+
+def test_extract_parser_flush_and_guards(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    stats_content = (
+        "frame:0    pts:0       pts_time:0.0\n"
+        "lavfi.signalstats.YMAX=20\n"  # Guard test: missing YAVG entirely
+        "frame:1    pts:1       pts_time:0.1\n"
+        "lavfi.signalstats.YAVG=10\n"  # Frame A
+        "frame:2    pts:2       pts_time:0.2\n"
+        "lavfi.signalstats.YAVG=20\n"  # Frame B
+        "frame:3    pts:3       pts_time:0.3\n"
+        "lavfi.signalstats.YAVG=30\n"  # Frame C
+        # EOF happens right here, frame C must be flushed!
+    )
+    fake = MockFfmpegRunner({0: stats_content})
+    from flashframe.extract import run_extraction
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        scan_id = run_extraction("vid.mp4", frame_start=None)
+        
+    with open("frame_metrics.csv") as f:
+        lines = f.read().splitlines()
+        
+    assert len(lines) == 4  # Header + 3 valid frames
+    assert lines[1].startswith(f"{scan_id},2,0.1,0,10.0")
+    assert lines[2].startswith(f"{scan_id},5,0.2,0,20.0")
+    assert lines[3].startswith(f"{scan_id},7,0.3,0,30.0")
+
+    # Now verify the EOF guard: file ends without YAVG
+    stats_content_2 = (
+        "frame:0    pts:0       pts_time:0.0\n"
+        "lavfi.signalstats.YMAX=20\n"
+    )
+    fake2 = MockFfmpegRunner({0: stats_content_2})
+    with patch("flashframe.extract.subprocess.run", fake2):
+        scan_id2 = run_extraction("vid.mp4", frame_start=None)
+        
+    with open("frame_metrics.csv") as f:
+        lines2 = f.read().splitlines()
+    assert len(lines2) == 1 # Only header
+
+def test_extract_parser_missing_files_and_defaults(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    
+    # "have the fake write only stats_0.txt and stats_5.txt"
+    stats_0 = "frame:0    pts:0       pts_time:0.0\nlavfi.signalstats.YAVG=111\n"
+    stats_5 = (
+        "frame:0    pts:0       pts_time:0.0\n"
+        "lavfi.signalstats.YAVG=222\n"
+        "lavfi.signalstats.YMAX=255\n"
+        "lavfi.signalstats.YMIN=0\n"
+        "lavfi.signalstats.SATAVG=128\n"
+        "lavfi.signalstats.VAVG=127.5\n" # red_ratio will be 0.5
+    )
+    
+    fake = MockFfmpegRunner({0: stats_0, 5: stats_5})
+    from flashframe.extract import run_extraction
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        scan_id = run_extraction("vid.mp4", frame_start=None)
+        
+    with open("frame_metrics.csv") as f:
+        lines = f.read().splitlines()
+        
+    assert len(lines) == 3
+    # tile 0: defaults
+    assert lines[1] == f"{scan_id},0,0.0,0,111.0,0.0,0.0,0.0,0.0"
+    # tile 5: full
+    assert lines[2] == f"{scan_id},0,0.0,5,222.0,255.0,0.0,128.0,0.5"
