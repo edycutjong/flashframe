@@ -4,6 +4,7 @@
 
 **Live URL:** https://flashframe-production.up.railway.app  
 **Demo Video:** https://youtu.be/rPxGyYpVfAE  
+**Judge Page:** https://flashframe-production.up.railway.app/judge  
 
 ![Python](https://img.shields.io/badge/Python-3.13-blue) ![ClickHouse](https://img.shields.io/badge/ClickHouse-Cloud-yellow) ![Gemini](https://img.shields.io/badge/Gemini-3.6--flash-orange) ![FastAPI](https://img.shields.io/badge/FastAPI-green)
 

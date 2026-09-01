@@ -81,6 +81,10 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 async def read_index(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
+@app.get("/judge", response_class=HTMLResponse)
+async def read_judge(request: Request):
+    return templates.TemplateResponse(request, "judge.html")
+
 async def run_actual_pipeline(scan_id, video_path):
     try:
         await run_pipeline(video_path)

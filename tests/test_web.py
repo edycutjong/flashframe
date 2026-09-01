@@ -73,6 +73,12 @@ def test_read_index(client):
     response = client.get("/")
     assert response.status_code == 200
 
+def test_read_judge(client):
+    response = client.get("/judge")
+    assert response.status_code == 200
+    assert b"Upload a locked cut, get a broadcast photosensitivity safety certificate" in response.content
+    assert b"138,240" in response.content
+
 def test_lifespan_missing_creds(monkeypatch):
     monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
     with pytest.raises(RuntimeError, match="Missing required ClickHouse credentials"):

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashframe Judge Index</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .judge-content {
+            font-family: var(--font-display);
+            line-height: 1.6;
+        }
+        .judge-content h2 {
+            margin-top: 2rem;
+            color: var(--text);
+            border-bottom: 1px solid var(--grid);
+            padding-bottom: 0.5rem;
+        }
+        .judge-content h3 {
+            margin-top: 1.5rem;
+            color: var(--text);
+        }
+        .judge-content blockquote {
+            background: var(--surface);
+            border-left: 4px solid var(--text-dim);
+            padding: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+        }
+        .judge-content ul, .judge-content ol {
+            padding-left: 2rem;
+        }
+        .judge-content li {
+            margin-bottom: 0.5rem;
+        }
+        .judge-content code {
+            font-family: var(--font-mono);
+            background: var(--grid);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+        }
+        .judge-content pre {
+            font-family: var(--font-mono);
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--grid);
+        }
+        .judge-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .judge-content a {
+            color: var(--pass);
+            text-decoration: none;
+        }
+        .judge-content a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <h1>Flashframe Judge Index</h1>
+    </header>
+    <main class="container judge-content">
+        <blockquote>
+            <p>Upload a locked cut, get a broadcast photosensitivity safety certificate — before you pay for the lab pass.</p>
+        </blockquote>
+
+        <h2>The 30-Second Path</h2>
+        <ol>
+            <li>Open <a href="https://flashframe-production.up.railway.app">https://flashframe-production.up.railway.app</a></li>
+            <li>Click one of the three bundled seed clips (<code>control_clean</code>, <code>hard_fail_strobe</code>, <code>borderline_screen_area</code>) — no upload, no keys, no arguments, no flags</li>
+            <li>Watch the scan and read the issued certificate</li>
+        </ol>
+        <p><em>Honest warning: ClickHouse Cloud auto-suspends when idle, so a cold first query costs ~25 s; the app issues a warm-up query on startup and the UI says what it is doing. A judge who hits a 25 s wait without warning assumes it is broken.</em></p>
+
+        <h2>The Receipt</h2>
+        <p><em>Note: All figures cross-checked exactly against README.md and DEMO.md.</em></p>
+        <ul>
+            <li>138,240 frames (92 min 9.6 s at 25 fps), N=5, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1</li>
+            <li>INGEST p50 0.338 s / p95 0.356 s</li>
+            <li>DETECT (windowed SQL, data resident) p50 0.106 s / p95 0.163 s</li>
+            <li>TOTAL p50 0.437 s / p95 0.478 s</li>
+            <li>Accuracy: manifest offset 103127 → detected span 103127; control feature 0 false positives</li>
+            <li><code>hard_fail_strobe.mp4</code>: ground truth FAIL frames 739-760 @ 6.25 flashes/sec → observed FAIL frames 740-760 @ 6.25, exact</li>
+            <li>Test suite: 101 tests, 98 pass with no credentials at all, 100% statement coverage on 621 statements</li>
+        </ul>
+
+        <h2>The Reproduce Command</h2>
+        <pre><code class="language-bash">git clone https://github.com/edycutjong/flashframe.git
+cd flashframe
+uv pip install -e . -r requirements.txt
+# credentials from ~/.config
+python -m flashframe.cli</code></pre>
+
+        <h3>Credential-Free Test Suite</h3>
+        <p>The product itself requires live ClickHouse + Gemini credentials. The test suite does not:</p>
+        <ul>
+            <li>98 of 101 tests pass with no credentials at all on a fresh clone.</li>
+        </ul>
+
+        <h2>Honest Limitations</h2>
+        <ul>
+            <li>Gemini free tier 5 req/min, 20/day; the resample loop is multi-call so a demo run may need spacing; the app catches 429 and says so.</li>
+            <li>ClickHouse Cloud cold start ~25 s.</li>
+            <li>INGEST is round-trip bound, likely dominated by MCP/HTTP rather than ClickHouse — which is why the stages are reported separately rather than as one blended 0.437 s.</li>
+        </ul>
+        <p><em>Disclaimer: Flashframe is a screening-grade pre-check against published ITU-R BT.1702 / Ofcom 2.12 criteria. It is <strong>not</strong> a certified Harding test and does not imply a lab pass or legal clearance.</em></p>
+
+        <h2>Links</h2>
+        <ul>
+            <li><strong>Live App:</strong> <a href="https://flashframe-production.up.railway.app">https://flashframe-production.up.railway.app</a></li>
+            <li><strong>Repo:</strong> <a href="https://github.com/edycutjong/flashframe">https://github.com/edycutjong/flashframe</a></li>
+            <li><strong>Demo Video:</strong> <a href="https://youtu.be/rPxGyYpVfAE">https://youtu.be/rPxGyYpVfAE</a></li>
+        </ul>
+    </main>
+</body>
+</html>
