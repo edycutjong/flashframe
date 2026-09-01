@@ -645,3 +645,100 @@ async def test_ingest_exact_5000_row_batching(monkeypatch, tmp_path):
     
     assert len(inserts) == 1
     assert inserts[0].count("('scan_") == 5000
+
+class MockFfmpegRunner:
+    def __init__(self, stats_contents=None):
+        self.argv = None
+        self.kwargs = None
+        self.stats_contents = stats_contents or {}
+        
+    def __call__(self, cmd, **kwargs):
+        self.argv = cmd
+        self.kwargs = kwargs
+        for k, v in self.stats_contents.items():
+            with open(f"stats_{k}.txt", "w") as f:
+                f.write(v)
+
+def test_extract_filtergraph_and_uuid(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    fake = MockFfmpegRunner()
+    from flashframe.extract import run_extraction
+    import uuid
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        scan_id = run_extraction("vid.mp4", fps_override=10)
+        
+    assert isinstance(uuid.UUID(scan_id), uuid.UUID)
+    
+    with open("filter.txt") as f:
+        content = f.read()
+        
+    assert content.startswith("fps=10,split=10")
+    assert "[full]signalstats,metadata=print:file=stats_0.txt[out0]" in content
+    assert "[t1]crop=iw/3:ih/3:0:0,signalstats,metadata=print:file=stats_1.txt[out1]" in content
+    assert "[t2]crop=iw/3:ih/3:iw/3:0,signalstats,metadata=print:file=stats_2.txt[out2]" in content
+    assert "[t3]crop=iw/3:ih/3:2*iw/3:0,signalstats,metadata=print:file=stats_3.txt[out3]" in content
+    assert "[t4]crop=iw/3:ih/3:0:ih/3,signalstats,metadata=print:file=stats_4.txt[out4]" in content
+    assert "[t5]crop=iw/3:ih/3:iw/3:ih/3,signalstats,metadata=print:file=stats_5.txt[out5]" in content
+    assert "[t6]crop=iw/3:ih/3:2*iw/3:ih/3,signalstats,metadata=print:file=stats_6.txt[out6]" in content
+    assert "[t7]crop=iw/3:ih/3:0:2*ih/3,signalstats,metadata=print:file=stats_7.txt[out7]" in content
+    assert "[t8]crop=iw/3:ih/3:iw/3:2*ih/3,signalstats,metadata=print:file=stats_8.txt[out8]" in content
+    assert "[t9]crop=iw/3:ih/3:2*iw/3:2*ih/3,signalstats,metadata=print:file=stats_9.txt[out9]" in content
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        run_extraction("vid.mp4")
+        
+    with open("filter.txt") as f:
+        content = f.read()
+    assert content.startswith("split=10")
+    assert "fps=" not in content
+
+def test_extract_stale_stats_cleanup(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with open("stats_3.txt", "w") as f:
+        f.write("junk data")
+        
+    fake = MockFfmpegRunner()
+    from flashframe.extract import run_extraction
+    with patch("flashframe.extract.subprocess.run", fake):
+        run_extraction("vid.mp4")
+        
+    assert not os.path.exists("stats_3.txt")
+
+def test_extract_ffmpeg_argv(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    fake = MockFfmpegRunner()
+    from flashframe.extract import run_extraction
+    with patch("flashframe.extract.subprocess.run", fake):
+        run_extraction("my_video.mp4")
+        
+    assert "-filter_complex_script" in fake.argv
+    assert "filter.txt" in fake.argv
+    assert "-i" in fake.argv
+    assert "my_video.mp4" in fake.argv
+    assert "-f" in fake.argv
+    assert "null" in fake.argv
+    assert "-" in fake.argv
+    for i in range(10):
+        assert "-map" in fake.argv
+        assert f"[out{i}]" in fake.argv
+        
+    assert fake.kwargs.get("check") is True
+
+def test_extract_seek_arithmetic(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    fake = MockFfmpegRunner()
+    from flashframe.extract import run_extraction
+    with patch("flashframe.extract.subprocess.run", fake):
+        run_extraction("vid.mp4", frame_start=100, frame_end=124)
+        
+    assert "-ss" in fake.argv
+    assert "4.0" in fake.argv
+    assert "-t" in fake.argv
+    assert "1.0" in fake.argv
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        run_extraction("vid.mp4", frame_start=None)
+        
+    assert "-ss" not in fake.argv
+    assert "-t" not in fake.argv
