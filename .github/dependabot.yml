@@ -1,0 +1,8 @@
+# This project is submitted and its judging window runs to 2026-10-07.
+# The updates list is deliberately empty so Dependabot opens no version-update
+# pull requests during this time, avoiding the risk of merging a bump that
+# breaks the demo a judge is about to click.
+# GitHub security alerts are a repository setting and are unaffected — they still fire.
+# If the project continues after judging, this file should be revisited to enable updates.
+version: 2
+updates: []
