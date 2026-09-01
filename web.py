@@ -175,6 +175,8 @@ async def report(request: Request, scan_id: str):
             "remediation": cert_row.get('remediation', ""),
             "read_back_query": cert_query
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print("Failed to run cert query:", e)
         cert = {"passed": True, "measured_value": 0.0, "frame_start": 0, "frame_end": 0, "cause": "", "remediation": ""}
