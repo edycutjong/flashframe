@@ -1,6 +1,10 @@
+![Flashframe Icon](assets/icon-animated.svg)
+
 # Flashframe
 
 > Upload a locked cut, get a broadcast photosensitivity safety certificate — before you pay for the lab pass.
+
+![Flashframe Hero](assets/hero-animated.svg)
 
 **Live URL:** https://flashframe-production.up.railway.app  
 **Demo Video:** https://youtu.be/rPxGyYpVfAE  
