@@ -458,3 +458,53 @@ def test_report_meta_with_columns(client):
     res = client.get("/report/1234")
     assert b"col_test.mp4" in res.content
 
+
+def test_schema_preflight_happy_path():
+    state = {}
+    def side_db(args):
+        state["list_db_called"] = True
+        return "ok"
+    def side_tables(args):
+        state["list_tables_db_arg"] = args.get("database")
+        return "frame_metrics, threshold_reference, violation_ledger"
+    def side_chdb(args):
+        state["chdb_query_arg"] = args.get("query")
+        return "test_threshold"
+
+    tools = [
+        MockTool("list_databases", side_effect=side_db),
+        MockTool("list_tables", side_effect=side_tables),
+        MockTool("run_chdb_select_query", side_effect=side_chdb)
+    ]
+    asyncio.run(web.run_schema_preflight(tools, "test_db"))
+    
+    assert state.get("list_db_called") is True
+    assert state.get("list_tables_db_arg") == "test_db"
+    assert "thresholds.csv" in state.get("chdb_query_arg")
+    assert web.SCHEMA_PREFLIGHT["status"] == "success"
+    assert "frame_metrics" in web.SCHEMA_PREFLIGHT["found_tables"]
+    assert "violation_ledger" in web.SCHEMA_PREFLIGHT["found_tables"]
+    assert "threshold_reference" in web.SCHEMA_PREFLIGHT["found_tables"]
+    assert len(web.SCHEMA_PREFLIGHT["missing_tables"]) == 0
+    assert len(web.SCHEMA_PREFLIGHT["thresholds_read"]) > 0
+
+def test_schema_preflight_missing_tables():
+    tools = [
+        MockTool("list_databases"),
+        MockTool("list_tables", side_effect=lambda a: "frame_metrics, violation_ledger"),
+        MockTool("run_chdb_select_query")
+    ]
+    asyncio.run(web.run_schema_preflight(tools, "test_db"))
+    
+    assert web.SCHEMA_PREFLIGHT["status"] == "success"
+    assert "frame_metrics" in web.SCHEMA_PREFLIGHT["found_tables"]
+    assert "threshold_reference" in web.SCHEMA_PREFLIGHT["missing_tables"]
+
+def test_schema_preflight_failure_caught():
+    tools = [
+        MockTool("list_databases", side_effect=Exception("DB boom"))
+    ]
+    asyncio.run(web.run_schema_preflight(tools, "test_db"))
+    
+    assert web.SCHEMA_PREFLIGHT["status"] == "error"
+    assert "boom" in web.SCHEMA_PREFLIGHT["error"]

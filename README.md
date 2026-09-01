@@ -147,7 +147,7 @@ FROM merged_spans
 ORDER BY flashes DESC
 ```
 
-As the query shows, ClickHouse tracks opposing transitions (`dir != lagInFrame(...)`) to ensure a full flash is registered, not just a single brightness change. Then `sum(is_flash) OVER (...)` identifies offending windows, and `merged_spans` outputs the exact frame span. Without ClickHouse, replicating this logic securely and rapidly over large time-series datasets would require a heavier architecture involving stream processing frameworks or manual windowing code. All four MCP tools do real work — as verified by `git grep` across all tracked files in this repo: `run_query` 53, `McpToolset` 17, `list_tables` 7, `list_databases` 5.
+As the query shows, ClickHouse tracks opposing transitions (`dir != lagInFrame(...)`) to ensure a full flash is registered, not just a single brightness change. Then `sum(is_flash) OVER (...)` identifies offending windows, and `merged_spans` outputs the exact frame span. Without ClickHouse, replicating this logic securely and rapidly over large time-series datasets would require a heavier architecture involving stream processing frameworks or manual windowing code. All four MCP tools do real work: `run_query` in ingest/detect/certify and the report route; `list_databases` and `list_tables` in the startup schema preflight; `run_chdb_select_query` reading `thresholds.csv` with zero ETL in the same preflight.
 
 **Remove Gemini and you ship a false-positive storm with no named cause.** 
 

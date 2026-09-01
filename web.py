@@ -23,6 +23,48 @@ from src.flashframe.cli import run_pipeline
 scan_status_dict = {}
 clickhouse_client = None
 
+SCHEMA_PREFLIGHT = {}
+
+async def run_schema_preflight(tools, database):
+    global SCHEMA_PREFLIGHT
+    try:
+        SCHEMA_PREFLIGHT["database"] = database
+        SCHEMA_PREFLIGHT["found_tables"] = []
+        SCHEMA_PREFLIGHT["missing_tables"] = []
+        SCHEMA_PREFLIGHT["thresholds_read"] = []
+        SCHEMA_PREFLIGHT["status"] = "started"
+
+        list_db_tool = next((t for t in tools if t.name == "list_databases"), None)
+        list_tables_tool = next((t for t in tools if t.name == "list_tables"), None)
+        chdb_tool = next((t for t in tools if t.name == "run_chdb_select_query"), None)
+
+        if list_db_tool:
+            await list_db_tool.run_async(args={}, tool_context=None)
+        
+        if list_tables_tool:
+            tables_res = await list_tables_tool.run_async(args={"database": database}, tool_context=None)
+            tables_text = str(tables_res)
+            
+            # Simple substring checking
+            expected_tables = ["frame_metrics", "threshold_reference", "violation_ledger"]
+            for t in expected_tables:
+                if t in tables_text:
+                    SCHEMA_PREFLIGHT["found_tables"].append(t)
+                else:
+                    SCHEMA_PREFLIGHT["missing_tables"].append(t)
+                    
+        if chdb_tool:
+            chdb_query = "SELECT territory, criterion, max_flashes_sec FROM file('thresholds.csv', CSVWithNames)"
+            chdb_res = await chdb_tool.run_async(args={"query": chdb_query}, tool_context=None)
+            SCHEMA_PREFLIGHT["thresholds_read"].append(str(chdb_res))
+            
+        SCHEMA_PREFLIGHT["status"] = "success"
+        print(f"Schema preflight: DB={database}, Found={SCHEMA_PREFLIGHT['found_tables']}, Missing={SCHEMA_PREFLIGHT['missing_tables']}")
+    except Exception as e:
+        SCHEMA_PREFLIGHT["status"] = "error"
+        SCHEMA_PREFLIGHT["error"] = str(e)
+        print("Schema preflight failed:", e)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global clickhouse_client
@@ -57,6 +99,7 @@ async def lifespan(app: FastAPI):
         tools = await clickhouse.get_tools()
         run_query_tool = next(t for t in tools if t.name == "run_query")
         asyncio.create_task(run_query_tool.run_async(args={"query": "SELECT 1"}, tool_context=None))
+        asyncio.create_task(run_schema_preflight(tools, env.get("CLICKHOUSE_DATABASE", "flashframe")))
     except Exception as e:
         print("Warmup query failed:", e)
         
