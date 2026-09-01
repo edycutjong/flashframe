@@ -73,7 +73,7 @@ templates = Jinja2Templates(directory="templates")
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     if exc.status_code == 404:
-        return templates.TemplateResponse(request, "404.html", {"message": "This page or scan no longer exists."}, status_code=404)
+        return templates.TemplateResponse(request, "404.html", {"message": "The requested page or scan results could not be found."}, status_code=404)
     return HTMLResponse(content=str(exc.detail), status_code=exc.status_code)
 
 
