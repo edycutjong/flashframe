@@ -47,17 +47,27 @@ python -m flashframe.cli
 | `hard_fail_strobe.mp4` | FAIL, frames 739-760 @ 6.25 flashes/sec | FAIL, frames 740-760 @ **6.25** — exact |
 | `borderline_screen_area.mp4` | PASS only after resample, 2.5 flashes/sec | PASS, frames 1025-1055 @ **2.82** (+12.9 %) |
 
-**Benchmark** — 138,240 frames (92 min 9.6 s at 25 fps), N=5, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1:
+**Benchmark** — Conditions: 2026-09-01, freshly generated 138,240-frame clip (92 min 9.6 s at 25 fps), `frame_metrics` truncated to a single scan beforehand, N=5 iterations per run, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1.
 
+We report the warm run (Run B) as the steady-state figure, and disclose the cold run (Run A) alongside it. Run A's p95 of 14.252 s on DETECT is a ClickHouse Cloud cold-start spike.
+
+**Run B (Warm / Steady-State):**
 | Stage | p50 | p95 |
 |---|---|---|
-| INGEST (bulk INSERT) | 0.338 s | 0.356 s |
-| **DETECT (windowed SQL, data resident)** | **0.106 s** | **0.163 s** |
-| TOTAL | 0.437 s | 0.478 s |
+| INGEST (bulk INSERT) | 2.888 s | 8.843 s |
+| **DETECT (windowed SQL, data resident)** | **0.550 s** | **0.940 s** |
+| TOTAL | 3.548 s | 9.471 s |
 
-*Note on timings: ffmpeg extraction and Gemini adjudication are excluded from the timed region. Manifest offset 103127 → detected span 103127. Control feature: 0 false positives.*
+**Run A (First Run after truncation - Cold):**
+| Stage | p50 | p95 |
+|---|---|---|
+| INGEST | 2.486 s | 3.379 s |
+| DETECT | 0.423 s | 14.252 s |
+| TOTAL | 2.910 s | 16.521 s |
 
-**Disclose, don't bury:** INGEST is likely dominated by MCP/HTTP round-trips rather than ClickHouse. Reporting the stages separately is deliberate — one blended 0.437 s would credit ClickHouse with 0.338 s of transport latency.
+*Note on timings: ffmpeg extraction and Gemini adjudication are excluded from the timed region. Manifest offset 57896 → detected span 57896, on all 5 iterations of both runs — 10/10, zero mismatches. Control feature: 0 false positives.*
+
+**Disclose, don't bury:** INGEST is round-trip bound and likely dominated by MCP/HTTP rather than ClickHouse. Reporting the stages separately is deliberate — one blended TOTAL would incorrectly credit ClickHouse with transport latency.
 
 ---
 

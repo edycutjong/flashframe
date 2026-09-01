@@ -14,11 +14,11 @@
 
 *Note: All figures cross-checked exactly against README.md and DEMO.md.*
 
-- 138,240 frames (92 min 9.6 s at 25 fps), N=5, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1
-- INGEST p50 0.338 s / p95 0.356 s
-- DETECT (windowed SQL, data resident) p50 0.106 s / p95 0.163 s
-- TOTAL p50 0.437 s / p95 0.478 s
-- Accuracy: manifest offset 103127 → detected span 103127; control feature 0 false positives
+- Conditions: 2026-09-01, freshly generated 138,240-frame clip (92 min 9.6 s at 25 fps), `frame_metrics` truncated to a single scan beforehand, N=5 iterations per run, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1
+- INGEST: p50 2.888 s / p95 8.843 s (warm) vs p50 2.486 s / p95 3.379 s (cold)
+- DETECT (windowed SQL, data resident): p50 0.550 s / p95 0.940 s (warm) vs p50 0.423 s / p95 14.252 s (cold start spike)
+- TOTAL: p50 3.548 s / p95 9.471 s (warm) vs p50 2.910 s / p95 16.521 s (cold)
+- Accuracy: manifest offset 57896 → detected span 57896, on all 5 iterations of both runs — 10/10, zero mismatches; control feature 0 false positives
 - `hard_fail_strobe.mp4`: ground truth FAIL frames 739-760 @ 6.25 flashes/sec → observed FAIL frames 740-760 @ 6.25, exact
 - Test suite: 99 tests, 96 pass with no credentials at all, 100% statement coverage on 604 statements
 
@@ -40,7 +40,8 @@ The product itself requires live ClickHouse + Gemini credentials. The test suite
 
 - Gemini free tier 5 req/min, 20/day; the resample loop is multi-call so a demo run may need spacing; the app catches 429 and says so.
 - ClickHouse Cloud cold start ~25 s.
-- INGEST is round-trip bound, likely dominated by MCP/HTTP rather than ClickHouse — which is why the stages are reported separately rather than as one blended 0.437 s.
+- INGEST is round-trip bound, likely dominated by MCP/HTTP rather than ClickHouse — which is why the stages are reported separately rather than as one blended TOTAL.
+- The public demo video title quotes an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
 
 *Disclaimer: Flashframe is a screening-grade pre-check against published ITU-R BT.1702 / Ofcom 2.12 criteria. It is **not** a certified Harding test and does not imply a lab pass or legal clearance.*
 

@@ -14,6 +14,7 @@ The 10 fps first pass measured the strobe at 5.0 flashes/sec; after the agent's 
 
 ## 3. Known Limitations
 
+- The public demo video title quotes an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
 - Gemini's stated figures are visual estimates, not measurements. ClickHouse supplies the precise numbers; Gemini supplies the judgement about what is on screen.
 - The Gemini API free tier caps at 5 requests/minute and 20/day per model, so a full three-clip run may need to be spaced out. State this plainly; it is a real constraint a judge reproducing the demo will hit.
 - Screen area is a 3x3 tiled proxy, not true per-pixel measurement.
@@ -54,21 +55,28 @@ To evaluate the generation and analysis bottlenecks on extended durations, we ge
 
 ### Data
 * **Row count (frames):** 138,240
-* **Iterations (N):** 5
-
-### Hardware
-* ClickHouse Cloud, 1 replica, 8 GiB / 2 vCPU, AWS ap-southeast-1
+* **Conditions:** 2026-09-01, `bench.py`, N=5 iterations per run, freshly generated 138,240-frame clip, `frame_metrics` truncated to a single scan beforehand
+* **Hardware:** ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1
 
 ### Results (seconds)
-* **INGEST (bulk INSERT):** p50 = 0.338s / p95 = 0.356s
-* **DETECT (windowed detection SQL alone, data already resident):** p50 = 0.106s / p95 = 0.163s
-* **TOTAL:** p50 = 0.437s / p95 = 0.478s
+*Note: We headline the warm run (Run B) as the steady-state figure, and disclose the cold run (Run A) alongside it. Run A's p95 of 14.252 s on DETECT is a ClickHouse Cloud cold-start spike.*
 
-*(Note: INGEST time may be dominated by MCP round-trips or HTTP overhead rather than ClickHouse itself, which is a known limitation).*
+**Run B (warm, immediately after):**
+* **INGEST (bulk INSERT):** p50 = 2.888 / p95 = 8.843
+* **DETECT (windowed detection SQL alone, data already resident):** p50 = 0.550 / p95 = 0.940
+* **TOTAL:** p50 = 3.548 / p95 = 9.471
+
+**Run A (first run after truncation):**
+* **INGEST:** p50 = 2.486 / p95 = 3.379
+* **DETECT:** p50 = 0.423 / p95 = 14.252
+* **TOTAL:** p50 = 2.910 / p95 = 16.521
+
+*(Note: INGEST is round-trip bound and likely dominated by MCP/HTTP rather than ClickHouse. A blended TOTAL would credit ClickHouse with transport latency).*
 
 ### Accuracy
-* **Expected manifest offset:** 103127
-* **Detected span:** 103127
+* **Expected manifest offset:** 57896
+* **Detected span:** 57896
+* **Robustness:** 10/10 exact detections across two independent runs on a newly generated clip (all 5 iterations of both runs — zero mismatches).
 * **Control result:** 0 false-positives on an identical control video without the strobe.
 
 ### Reproduce
