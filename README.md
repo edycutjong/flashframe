@@ -24,6 +24,12 @@ Per-frame ffmpeg photometrics stream into ClickHouse; sliding-window SQL catches
 
 ---
 
+## Architecture
+
+![Architecture](assets/architecture.svg)
+
+---
+
 ## Quickstart
 
 **Zero-config path:** Open the live URL (https://flashframe-production.up.railway.app), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.

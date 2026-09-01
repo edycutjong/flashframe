@@ -1,0 +1,161 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 850" font-family="ui-sans-serif, system-ui, sans-serif">
+  <defs>
+    <marker id="arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#8A94A6"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#F0B429"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3DD68C"/>
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="transparent"/>
+  <text x="130" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">CLIENT</text>
+  <text x="390" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">WEB SERVER</text>
+  <text x="730" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">PIPELINE ORCHESTRATION</text>
+  <text x="1190" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">MCP &amp; EXTERNAL APIS</text>
+  <g>
+    <rect x="40" y="100" width="180" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="50" y="124" fill="#E6EAF0" font-size="16" font-weight="bold">Browser</text>
+  </g>
+  <g>
+    <rect x="40" y="720" width="180" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="50" y="744" fill="#E6EAF0" font-size="16" font-weight="bold">Browser</text>
+  </g>
+  <g>
+    <rect x="300" y="100" width="180" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="310" y="124" fill="#E6EAF0" font-size="16" font-weight="bold">FastAPI</text>
+    <text x="310" y="144" fill="#8A94A6" font-size="14">web.py</text>
+  </g>
+  <g>
+    <rect x="300" y="720" width="180" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="310" y="744" fill="#E6EAF0" font-size="16" font-weight="bold">web.py</text>
+    <text x="310" y="764" fill="#8A94A6" font-size="14">Report Route</text>
+  </g>
+  <g>
+    <line x1="220" y1="130" x2="300" y2="130" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="260.0" y="122.0" fill="#8A94A6" font-size="14" text-anchor="middle">POST /upload</text>
+  </g>
+  <g>
+    <line x1="220" y1="750" x2="300" y2="750" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="260.0" y="742.0" fill="#8A94A6" font-size="14" text-anchor="middle">GET /report/{scan_id}</text>
+  </g>
+  <rect x="520" y="70" width="420" height="730" rx="8" fill="none" stroke="#8A94A6" stroke-dasharray="6,6" stroke-width="2"/>
+  <text x="540" y="100" fill="#8A94A6" font-size="16" font-weight="bold">run_pipeline (cli.py)</text>
+  <g>
+    <line x1="480" y1="130" x2="520" y2="130" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="500.0" y="122.0" fill="#8A94A6" font-size="14" text-anchor="middle">BackgroundTask</text>
+  </g>
+  <g>
+    <rect x="540" y="120" width="380" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="550" y="144" fill="#E6EAF0" font-size="16" font-weight="bold">extract.py</text>
+    <text x="550" y="164" fill="#8A94A6" font-size="14">ffmpeg signalstats, 10 tiles (1 full + 9 crops)</text>
+  </g>
+  <g>
+    <line x1="730" y1="180" x2="730" y2="210" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+  </g>
+  <g>
+    <rect x="540" y="210" width="380" height="40" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="550" y="234" fill="#E6EAF0" font-size="16" font-weight="bold">frame_metrics.csv</text>
+  </g>
+  <g>
+    <line x1="730" y1="250" x2="730" y2="280" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+  </g>
+  <g>
+    <rect x="540" y="280" width="380" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="550" y="304" fill="#E6EAF0" font-size="16" font-weight="bold">ingest.py</text>
+    <text x="550" y="324" fill="#8A94A6" font-size="14">DDL + thresholds + 5000-row INSERT batches</text>
+  </g>
+  <g>
+    <line x1="730" y1="340" x2="730" y2="370" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+  </g>
+  <g>
+    <rect x="540" y="370" width="380" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="550" y="394" fill="#E6EAF0" font-size="16" font-weight="bold">detect.py</text>
+    <text x="550" y="414" fill="#8A94A6" font-size="14">windowed SQL: lagInFrame + sum() OVER</text>
+  </g>
+  <g>
+    <line x1="730" y1="430" x2="730" y2="460" stroke="#F0B429" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  </g>
+  <g>
+    <rect x="540" y="460" width="380" height="40" rx="4" fill="none" stroke="#F0B429" stroke-width="2"/>
+    <text x="550" y="484" fill="#F0B429" font-size="16" font-weight="bold">violating spans</text>
+  </g>
+  <g>
+    <line x1="730" y1="500" x2="730" y2="530" stroke="#F0B429" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  </g>
+  <rect x="540" y="530" width="380" height="190" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="1"/>
+  <text x="550" y="550" fill="#E6EAF0" font-size="14" font-weight="bold">cli.py (ADK LlmAgent orchestrates 3 tools)</text>
+  <g>
+    <rect x="560" y="570" width="340" height="30" rx="4" fill="#242B38" stroke="none" stroke-width="2"/>
+    <text x="570" y="594" fill="#E6EAF0" font-size="16" font-weight="bold">resample_frames</text>
+    <text x="570" y="614" fill="#8A94A6" font-size="14">escalate 10 → 30 → 60 fps (max 2)</text>
+  </g>
+  <g>
+    <rect x="560" y="610" width="340" height="30" rx="4" fill="#242B38" stroke="none" stroke-width="2"/>
+    <text x="570" y="634" fill="#E6EAF0" font-size="16" font-weight="bold">final_adjudicate</text>
+    <text x="570" y="654" fill="#8A94A6" font-size="14">ffmpeg cuts span.mp4 → Gemini</text>
+  </g>
+  <g>
+    <rect x="560" y="650" width="340" height="30" rx="4" fill="#242B38" stroke="none" stroke-width="2"/>
+    <text x="570" y="674" fill="#E6EAF0" font-size="16" font-weight="bold">certify</text>
+    <text x="570" y="694" fill="#8A94A6" font-size="14">INSERT + read-back assert</text>
+  </g>
+  <g>
+    <line x1="730" y1="720" x2="730" y2="740" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+  </g>
+  <g>
+    <rect x="540" y="740" width="380" height="40" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="550" y="764" fill="#E6EAF0" font-size="16" font-weight="bold">certificate.json</text>
+  </g>
+  <g>
+    <line x1="540" y1="760" x2="480" y2="760" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="510.0" y="750.0" fill="#8A94A6" font-size="14" text-anchor="middle">renders certificate + filmstrip</text>
+  </g>
+  <rect x="1040" y="70" width="300" height="480" rx="8" fill="#242B38" stroke="#F0B429" stroke-width="3" stroke-dasharray="12,6"/>
+  <text x="1060" y="100" fill="#F0B429" font-size="16" font-weight="bold">ClickHouse MCP Boundary</text>
+  <text x="1060" y="120" fill="#8A94A6" font-size="14">python -m mcp_clickhouse.main</text>
+  <g>
+    <rect x="1060" y="160" width="260" height="40" rx="4" fill="none" stroke="#8A94A6" stroke-width="2"/>
+    <text x="1070" y="184" fill="#E6EAF0" font-size="16" font-weight="bold">frame_metrics</text>
+  </g>
+  <g>
+    <rect x="1060" y="220" width="260" height="40" rx="4" fill="none" stroke="#8A94A6" stroke-width="2"/>
+    <text x="1070" y="244" fill="#E6EAF0" font-size="16" font-weight="bold">threshold_reference</text>
+  </g>
+  <g>
+    <rect x="1060" y="480" width="260" height="40" rx="4" fill="none" stroke="#8A94A6" stroke-width="2"/>
+    <text x="1070" y="504" fill="#E6EAF0" font-size="16" font-weight="bold">violation_ledger</text>
+  </g>
+  <g>
+    <rect x="1040" y="600" width="300" height="80" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="1050" y="624" fill="#E6EAF0" font-size="16" font-weight="bold">Gemini</text>
+    <text x="1050" y="644" fill="#8A94A6" font-size="14">generate_content(fps=24)</text>
+  </g>
+  <g>
+    <line x1="920" y1="310" x2="1040" y2="310" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="980.0" y="302.0" fill="#8A94A6" font-size="14" text-anchor="middle">run_query (INSERT)</text>
+  </g>
+  <g>
+    <line x1="920" y1="380" x2="1040" y2="380" stroke="#F0B429" stroke-width="2" marker-end="url(#arrow-amber)"/>
+    <text x="980.0" y="372.0" fill="#F0B429" font-size="14" text-anchor="middle">run_query (SELECT window)</text>
+  </g>
+  <g>
+    <line x1="1040" y1="410" x2="920" y2="410" stroke="#F0B429" stroke-width="2" marker-end="url(#arrow-amber)"/>
+    <text x="980.0" y="424.0" fill="#F0B429" font-size="14" text-anchor="middle"> MEASURED (ClickHouse) </text>
+  </g>
+  <g>
+    <line x1="900" y1="625" x2="1040" y2="625" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="970.0" y="617.0" fill="#8A94A6" font-size="14" text-anchor="middle">span.mp4 &amp; prompt</text>
+  </g>
+  <g>
+    <line x1="1040" y1="665" x2="900" y2="665" stroke="#3DD68C" stroke-width="2" marker-end="url(#arrow-green)"/>
+    <text x="970.0" y="679.0" fill="#3DD68C" font-size="14" text-anchor="middle"> JUDGED (Gemini) </text>
+  </g>
+  <g>
+    <line x1="900" y1="660" x2="1040" y2="500" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
+    <text x="930.0" y="565.0" fill="#8A94A6" font-size="14" text-anchor="middle">run_query (INSERT)</text>
+  </g>
+</svg>
