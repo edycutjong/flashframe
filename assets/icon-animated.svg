@@ -29,6 +29,17 @@
     .flagged {
       animation: illuminate 8s linear infinite;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scanner {
+        animation: none;
+        transform: translateX(120px);
+      }
+      .flagged {
+        animation: none;
+        opacity: 1;
+      }
+    }
   </style>
 
   <rect class="bg" x="32" y="32" width="448" height="448" rx="64" />
