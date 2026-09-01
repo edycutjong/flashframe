@@ -352,3 +352,50 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     color: var(--published);
     border-bottom: 1px dashed var(--published);
 }
+
+/* Full viewport drop zone */
+.full-viewport-drop {
+    min-height: 100vh;
+    border: 2px dashed var(--grid);
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.full-viewport-drop.drag-over {
+    border-color: var(--pass);
+}
+
+.text-muted {
+    color: var(--text-dim);
+}
+
+.upload-section {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.seed-clips-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--grid);
+}
+
+.seed-clips-grid {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.mt-2 { margin-top: 2rem; }
+
+.measured {
+    font-family: var(--font-mono);
+}
+
+.interpretation {
+    font-family: var(--font-display);
+}

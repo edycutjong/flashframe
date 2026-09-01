@@ -4,47 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Not Found - Flashframe</title>
-    <meta name="description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702 published criteria.">
-    <meta name="author" content="Edy">
-    <meta property="og:title" content="Not Found - Flashframe">
-    <meta property="og:description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702.">
-    <meta property="og:url" content="{{ request.url | string | replace('http://', 'https://') }}">
-    <meta property="og:site_name" content="Flashframe">
-    <meta property="og:image" content="{{ request.base_url | string | replace('http://', 'https://') }}static/og-image.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        .not-found {
-            text-align: center;
-            padding: 4rem 2rem;
-            background: var(--surface);
-            border: 1px solid var(--grid);
-            border-radius: 8px;
-            margin-top: 4rem;
-        }
-        .not-found h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: var(--text-high);
-        }
-        .not-found p {
-            color: var(--text-mid);
-            margin-bottom: 2rem;
-            font-size: 1.2rem;
-        }
-    </style>
 </head>
 <body>
     <header class="app-header">
         <h1>Flashframe</h1>
     </header>
     <main class="container">
-        <div class="not-found">
-            <h1>404 Not Found</h1>
-            <p>{{ message }}</p>
-            <a href="/" class="btn primary">Return to Home</a>
-        </div>
+        <h2>404 &mdash; Not Found</h2>
+        <p>
+            {% if message %}
+                {{ message }}
+            {% else %}
+                The requested resource could not be found.
+            {% endif %}
+        </p>
+        <p class="mt-2">
+            <a href="/" class="btn">Return to start</a>
+        </p>
     </main>
 </body>
 </html>

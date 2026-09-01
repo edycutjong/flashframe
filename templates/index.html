@@ -3,68 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flashframe - Photosensitivity Screening</title>
-    <meta name="description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702 published criteria.">
-    <meta name="author" content="Edy">
-    <meta property="og:title" content="Flashframe - Photosensitivity Screening">
-    <meta property="og:description" content="Screen a cut for photosensitivity violations against Ofcom 2.12 and ITU-R BT.1702.">
-    <meta property="og:url" content="{{ request.url | string | replace('http://', 'https://') }}">
-    <meta property="og:site_name" content="Flashframe">
-    <meta property="og:image" content="{{ request.base_url | string | replace('http://', 'https://') }}static/og-image.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <title>Flashframe</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="full-viewport-drop" id="drop-zone-body">
     <header class="app-header">
         <h1>Flashframe</h1>
     </header>
     <main class="container">
         <h2>Screen a cut for photosensitivity violations.</h2>
-        <p style="color: var(--text-mid); font-size: 1.2rem; margin-bottom: 2rem;">Ofcom 2.12 &middot; ITU-R BT.1702 &middot; NAB Japan &middot; screening-grade, not a certified lab pass.</p>
-        
-        <section class="seed-clips">
-            <h3>Try a synthetic test clip</h3>
-            <p style="color: var(--text-mid); margin-bottom: 1.5rem;">Measurement against a published line, resolved to an exact frame span. No upload required.</p>
-            <form action="/upload" method="post" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn primary">Strobe Violation (Fail)</button>
-                <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Borderline (Pass via resample)</button>
-                <button type="submit" name="seed_clip" value="control_clean" class="btn">Control Clip (Pass)</button>
-            </form>
-        </section>
+        <p class="interpretation text-muted">Ofcom 2.12 &middot; ITU-R BT.1702 &middot; NAB Japan &middot; screening-grade, not a certified lab pass.</p>
 
-        <section style="margin-top: 3rem;">
-            <h3>Or upload a video</h3>
-            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
-                <div class="drop-zone">
-                    <label for="file-upload">Drag/drop or click to select video</label>
-                    <input type="file" id="file-upload" name="file" accept="video/mp4,video/x-m4v,video/*">
+        <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
+            <section class="upload-section">
+                <input type="file" id="file" name="file" class="file-input">
+                <button type="submit" class="btn primary">Scan</button>
+            </section>
+            
+            <section class="seed-clips-section">
+                <h3>Seed Clips</h3>
+                <div class="seed-clips-grid">
+                    <button type="submit" name="seed_clip" value="hard_fail_strobe" class="btn">Strobe Violation (Fail)</button>
+                    <button type="submit" name="seed_clip" value="borderline_screen_area" class="btn">Borderline (Pass via resample)</button>
+                    <button type="submit" name="seed_clip" value="control_clean" class="btn">Control Clip (Pass)</button>
                 </div>
-                <button type="submit" class="btn">Scan</button>
-            </form>
-        </section>
+            </section>
+        </form>
     </main>
+
     <script>
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', () => {
-                const btns = form.querySelectorAll('button[type="submit"]');
-                setTimeout(() => {
-                    btns.forEach(b => { b.disabled = true; b.textContent = 'Scanning...'; });
-                }, 0);
-                
-                setTimeout(() => {
-                    let msgEl = document.getElementById('slow-status');
-                    if (!msgEl) {
-                        msgEl = document.createElement('p');
-                        msgEl.id = 'slow-status';
-                        msgEl.style.color = '#ff9800';
-                        msgEl.style.marginTop = '1rem';
-                        msgEl.textContent = 'Waking the analytics warehouse (ClickHouse Cloud suspends idle services; first query can take ~30s)';
-                        document.querySelector('main').appendChild(msgEl);
+        const form = document.getElementById('upload-form');
+        form.addEventListener('submit', () => {
+            setTimeout(() => {
+                form.querySelectorAll('button[type="submit"]').forEach(btn => {
+                    btn.disabled = true;
+                    if (btn.classList.contains('primary')) {
+                        btn.textContent = 'Scanning...';
                     }
-                    msgEl.style.display = 'block';
-                }, 3000);
-            });
+                });
+            }, 0);
+        });
+
+        const dropZone = document.getElementById('drop-zone-body');
+        const fileInput = document.getElementById('file');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+            }
         });
     </script>
 </body>
