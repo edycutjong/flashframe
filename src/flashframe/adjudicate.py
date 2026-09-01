@@ -4,7 +4,6 @@ import os
 import json
 from google import genai
 from google.genai import types
-from google.genai import errors
 
 class Verdict(BaseModel):
     passed: bool
@@ -16,30 +15,21 @@ class Verdict(BaseModel):
     remediation: str
 
 def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash", api_key=None):
-    keys = []
-    if api_key:
-        keys = [api_key]
-    else:
-        env_keys = os.environ.get("GEMINI_API_KEYS")
-        if env_keys is not None:
-            keys = [k.strip() for k in env_keys.split(',') if k.strip()]
+    if not api_key:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        env_model = os.environ.get("GEMINI_MODEL")
+        if env_model:
+            model = env_model
             
-        if not keys:
-            api_key = os.environ.get("GEMINI_API_KEY")
-            env_model = os.environ.get("GEMINI_MODEL")
-            if env_model:
-                model = env_model
-                
-            if not api_key:
-                cred_path = os.path.expanduser('~/.config/gemini/credentials.json')
-                if os.path.exists(cred_path):
-                    with open(cred_path, 'r') as f:
-                        creds = json.load(f)
-                        api_key = creds['keys'][1]['key']
-                        model = creds.get('model', model)
-                else:
-                    raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
-            keys = [api_key]
+        if not api_key:
+            cred_path = os.path.expanduser('~/.config/gemini/credentials.json')
+            if os.path.exists(cred_path):
+                with open(cred_path, 'r') as f:
+                    creds = json.load(f)
+                    api_key = creds['keys'][1]['key']
+                    model = creds.get('model', model)
+            else:
+                raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
             
     if os.path.exists('span.mp4'): os.remove('span.mp4')
     ss = frame_start / 25.0
@@ -49,35 +39,21 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
     with open('span.mp4', 'rb') as f:
         clip = f.read()
     
-    last_err = None
-    for i, current_key in enumerate(keys):
-        client = genai.Client(api_key=current_key)
-        
-        try:
-            resp = client.models.generate_content(
-                model=model,
-                contents=[
-                    types.Part(
-                        inline_data=types.Blob(data=clip, mime_type="video/mp4"),
-                        video_metadata=types.VideoMetadata(fps=24)
-                    ),
-                    types.Part.from_text(text=f"The frame span from frames {frame_start} to {frame_end} in the source video corresponds to this short clip. The automated luminance scan flagged this span for potential photosensitivity hazards. Please analyze the visual content to determine if there are harmful flashes on screen, if they pass or fail the limit, and what on-screen content causes them.")
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=Verdict,
-                    temperature=0.0
-                ),
-            )
-            return Verdict.model_validate_json(resp.text)
-        except errors.APIError as e:
-            err_str = str(e)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                print(f"key {i+1} of {len(keys)}: 429 / RESOURCE_EXHAUSTED")
-                last_err = e
-                continue
-            else:
-                raise
-                
-    if last_err is not None:
-        raise last_err
+    client = genai.Client(api_key=api_key)
+    
+    resp = client.models.generate_content(
+        model=model,
+        contents=[
+            types.Part(
+                inline_data=types.Blob(data=clip, mime_type="video/mp4"),
+                video_metadata=types.VideoMetadata(fps=24)
+            ),
+            types.Part.from_text(text=f"The frame span from frames {frame_start} to {frame_end} in the source video corresponds to this short clip. The automated luminance scan flagged this span for potential photosensitivity hazards. Please analyze the visual content to determine if there are harmful flashes on screen, if they pass or fail the limit, and what on-screen content causes them.")
+        ],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=Verdict,
+            temperature=0.0
+        ),
+    )
+    return Verdict.model_validate_json(resp.text)
