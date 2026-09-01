@@ -233,7 +233,7 @@ class FakeRunQueryTool:
 
 @pytest.mark.asyncio
 async def test_span_duration_off_by_one():
-    from src.flashframe.detect import detect_violations
+    from flashframe.detect import detect_violations
     fake_tool = FakeRunQueryTool()
     await detect_violations(fake_tool, "test_scan", fps=25)
     
@@ -248,7 +248,7 @@ async def test_span_duration_off_by_one():
 
 @pytest.mark.asyncio
 async def test_gemini_estimate_separate_from_measurement():
-    from src.flashframe.certify import write_certificate
+    from flashframe.certify import write_certificate
     fake_tool = FakeRunQueryTool(read_back_row=["test_scan", 1, 10, 20, 6.25, 3.0, "cause", "rem", 5.0, "2026-09-01"])
     
     cert = await write_certificate(
@@ -286,3 +286,29 @@ async def test_gemini_estimate_separate_from_measurement():
     # Because 6.25 is inserted as a bare float, it should be isolated.
     assert "6.25" in insert_sql
     assert "5.0" in insert_sql
+
+@pytest.mark.asyncio
+async def test_certify_read_back_mismatch_raises():
+    from flashframe.certify import write_certificate
+    fake_tool = FakeRunQueryTool(read_back_row=["test_scan", 1, 10, 20, 99.99, 3.0, "cause", "rem", 5.0, "2026-09-01"])
+    
+    with pytest.raises(RuntimeError, match="Ledger mismatch: inserted 6.25, read back 99.99"):
+        await write_certificate(
+            fake_tool,
+            scan_id="test_scan",
+            passed=True,
+            frame_start=10,
+            frame_end=20,
+            measured_value=6.25,
+            cause="cause",
+            remediation="rem",
+            gemini_estimated_rate=5.0
+        )
+
+def test_verdict_missing_fields_raises():
+    from flashframe.adjudicate import Verdict
+    from pydantic import ValidationError
+    import pytest
+    payload = '{"passed": true, "frame_start": 10}'
+    with pytest.raises(ValidationError):
+        Verdict.model_validate_json(payload)
