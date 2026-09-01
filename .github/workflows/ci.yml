@@ -22,3 +22,8 @@ jobs:
           pip install pytest pytest-asyncio
       - name: Run tests
         run: pytest -q tests/
+      - name: Check coverage
+        run: |
+          pip install coverage
+          coverage run --source=src/flashframe,web -m pytest -q tests/
+          coverage report -m --fail-under=100
