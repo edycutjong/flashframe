@@ -1,10 +1,12 @@
-fastapi[standard]
-uvicorn
-jinja2
-python-multipart
-pandas
-mcp
-mcp-clickhouse
-google-genai
-google-adk
-python-dotenv
+# Pinned because unpinned `mcp` resolves to 2.x, which moves `mcp.shared.session`
+# and breaks `google-adk`s `McpToolset` import that the product depends on.
+fastapi[standard]==0.141.1
+uvicorn==0.52.4
+jinja2==3.1.6
+python-multipart==0.0.32
+pandas==3.0.5
+mcp==1.29.1
+mcp-clickhouse==0.4.1
+google-genai==2.20.0
+google-adk==2.8.0
+python-dotenv==1.2.3
