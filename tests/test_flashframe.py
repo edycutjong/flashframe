@@ -218,3 +218,71 @@ async def test_adk_function_call_trigger():
             
         assert len(called_args) > 0
         assert called_args[0] == (1025, 1055, 30)
+
+class FakeRunQueryTool:
+    def __init__(self, read_back_row=None):
+        self.queries = []
+        self.read_back_row = read_back_row or []
+        
+    async def run_async(self, args, tool_context=None):
+        query = args.get("query", "")
+        self.queries.append(query)
+        if "SELECT * FROM violation_ledger" in query:
+            return {"content": [{"text": json.dumps({"columns": ["scan_id", "passed", "frame_start", "frame_end", "measured", "threshold", "cause", "remediation", "gemini_estimated_rate", "certified_at"], "rows": [self.read_back_row]})}]}
+        return {"content": [{"text": "{}"}]}
+
+@pytest.mark.asyncio
+async def test_span_duration_off_by_one():
+    from src.flashframe.detect import detect_violations
+    fake_tool = FakeRunQueryTool()
+    await detect_violations(fake_tool, "test_scan", fps=25)
+    
+    assert len(fake_tool.queries) == 1
+    sql = fake_tool.queries[0]
+    
+    # Assert the inclusive form is present
+    assert "(max(frame_idx) - min(frame_idx) + 1)" in sql
+    # Assert the exclusive form is absent
+    assert "(max(frame_idx) - min(frame_idx)) / 25.0" not in sql
+    assert "(max(frame_idx) - min(frame_idx))/25.0" not in sql
+
+@pytest.mark.asyncio
+async def test_gemini_estimate_separate_from_measurement():
+    from src.flashframe.certify import write_certificate
+    fake_tool = FakeRunQueryTool(read_back_row=["test_scan", 1, 10, 20, 6.25, 3.0, "cause", "rem", 5.0, "2026-09-01"])
+    
+    cert = await write_certificate(
+        fake_tool,
+        scan_id="test_scan",
+        passed=True,
+        frame_start=10,
+        frame_end=20,
+        measured_value=6.25,
+        cause="cause",
+        remediation="rem",
+        gemini_estimated_rate=5.0
+    )
+    
+    assert cert["measured_value"] == 6.25
+    assert cert["gemini_estimated_rate"] == 5.0
+    
+    # Verify the SQL itself
+    insert_sql = next(q for q in fake_tool.queries if "INSERT INTO" in q)
+    # The INSERT statement has columns:
+    # (scan_id, certified_at, territory, passed, frame_start, frame_end, measured, threshold, cause, remediation, gemini_estimated_rate)
+    # The values block in the f-string evaluates to:
+    # {measured_value} ... {gemini_estimated_rate}
+    
+    # Let's just make sure both values appear in the query and they aren't swapped.
+    # The query is structured with measured_value before gemini_estimated_rate.
+    measured_idx = insert_sql.find("6.25")
+    gemini_idx = insert_sql.find("5.0")
+    
+    assert measured_idx != -1
+    assert gemini_idx != -1
+    assert measured_idx < gemini_idx, 'measured_value must appear before gemini_estimated_rate in the SQL statement'
+    # Check that measured comes before the cause/remediation, and gemini comes after
+    # To be extremely precise, we can check the substring around them
+    # Because 6.25 is inserted as a bare float, it should be isolated.
+    assert "6.25" in insert_sql
+    assert "5.0" in insert_sql
