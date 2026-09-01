@@ -484,3 +484,164 @@ async def test_certify_res2_malformed_json(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="Ledger insertion failed: .*") as excinfo:
         await write_certificate(ShapeFakeRunQueryTool(shape="certify_malformed_json"), "scan1", True, 10, 20, 6.25, "cause", "rem")
     assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
+
+@pytest.mark.asyncio
+async def test_ingest_run_sql_error_attr_returned(capsys):
+    from flashframe.ingest import run_sql
+    class ErrAttrTool:
+        async def run_async(self, args, tool_context=None):
+            class ErrRes:
+                isError = True
+            return ErrRes()
+    
+    res = await run_sql(ErrAttrTool(), "SELECT 1")
+    assert getattr(res, "isError", False)
+    captured = capsys.readouterr()
+    assert "Error executing SQL: SELECT 1" in captured.out
+
+@pytest.mark.asyncio
+async def test_ingest_run_sql_error_dict_returned(capsys):
+    from flashframe.ingest import run_sql
+    class ErrDictTool:
+        async def run_async(self, args, tool_context=None):
+            return {"isError": True}
+            
+    res = await run_sql(ErrDictTool(), "SELECT 2")
+    assert res.get("isError")
+    captured = capsys.readouterr()
+    assert "Error executing SQL: SELECT 2" in captured.out
+
+@pytest.mark.asyncio
+async def test_ingest_ddl_and_reset(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    # create empty frame_metrics.csv
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("a,b,c,d,e,f,g,h,i\n")
+    
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "test_scan_123")
+    
+    queries = fake_tool.queries
+    assert any("CREATE TABLE IF NOT EXISTS frame_metrics" in q for q in queries)
+    assert any("CREATE TABLE IF NOT EXISTS threshold_reference" in q for q in queries)
+    assert any("CREATE TABLE IF NOT EXISTS violation_ledger" in q for q in queries)
+    assert any("DELETE FROM frame_metrics WHERE scan_id = 'test_scan_123'" in q for q in queries)
+    assert any("TRUNCATE TABLE IF EXISTS threshold_reference" in q for q in queries)
+
+@pytest.mark.asyncio
+async def test_ingest_scan_metadata(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("a,b,c,d,e,f,g,h,i\n")
+        
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id_456", video_path="/my/test/vid.mp4", source_fps=29.97, measured_fps=59.94)
+    
+    queries = fake_tool.queries
+    insert_meta = next(q for q in queries if "INSERT INTO scan_metadata VALUES" in q)
+    assert "'scan_id_456'" in insert_meta
+    assert "'/my/test/vid.mp4'" in insert_meta
+    assert "29.97" in insert_meta
+    assert "59.94" in insert_meta
+
+@pytest.mark.asyncio
+async def test_ingest_default_thresholds(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("a,b,c,d,e,f,g,h,i\n")
+        
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id")
+    
+    # Assert file was created
+    assert os.path.exists("thresholds.csv")
+    
+    # Assert the query
+    queries = fake_tool.queries
+    insert_thresh = next(q for q in queries if "INSERT INTO threshold_reference VALUES" in q)
+    assert "('UK-Ofcom', 'flash_rate', 3.0, 20.0, 25.0, 'Ofcom Rule 2.12')" in insert_thresh
+
+@pytest.mark.asyncio
+async def test_ingest_existing_thresholds(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("a,b,c,d,e,f,g,h,i\n")
+        
+    with open('thresholds.csv', 'w') as f:
+        f.write("territory,criterion,max,min,area,cit\n")
+        f.write("US,flash,1.1,2.2,3.3,Cit 1\n")
+        f.write("JP,flash,4.4,5.5,6.6,Cit 2\n")
+        
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id")
+    
+    queries = fake_tool.queries
+    insert_thresh = next(q for q in queries if "INSERT INTO threshold_reference VALUES" in q)
+    assert "('US', 'flash', 1.1, 2.2, 3.3, 'Cit 1')" in insert_thresh
+    assert "('JP', 'flash', 4.4, 5.5, 6.6, 'Cit 2')" in insert_thresh
+    assert "territory" not in insert_thresh
+
+@pytest.mark.asyncio
+async def test_ingest_empty_thresholds_guard(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("a,b,c,d,e,f,g,h,i\n")
+        
+    with open('thresholds.csv', 'w') as f:
+        f.write("territory,criterion,max,min,area,cit\n")
+        
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id")
+    
+    queries = fake_tool.queries
+    assert not any("INSERT INTO threshold_reference" in q for q in queries)
+
+@pytest.mark.asyncio
+async def test_ingest_5000_row_batching(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("scan_id,frame_idx,pts_time,tile,yavg,ymax,ymin,satavg,red_ratio\n")
+        for i in range(5001):
+            f.write(f"scan_{i},{i},0.0,0,0.0,0.0,0.0,0.0,0.0\n")
+            
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id")
+    
+    queries = fake_tool.queries
+    inserts = [q for q in queries if "INSERT INTO frame_metrics VALUES" in q]
+    
+    assert len(inserts) == 2
+    # 5000 value tuples in the first
+    assert inserts[0].count("('scan_") == 5000
+    assert inserts[1].count("('scan_") == 1
+    
+    # Check bounds
+    assert "('scan_0', 0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0)" in inserts[0]
+    assert "('scan_4999', 4999, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0)" in inserts[0]
+    assert "('scan_5000', 5000, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0)" in inserts[1]
+
+@pytest.mark.asyncio
+async def test_ingest_exact_5000_row_batching(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    
+    with open('frame_metrics.csv', 'w') as f:
+        f.write("scan_id,frame_idx,pts_time,tile,yavg,ymax,ymin,satavg,red_ratio\n")
+        for i in range(5000):
+            f.write(f"scan_{i},{i},0.0,0,0.0,0.0,0.0,0.0,0.0\n")
+            
+    from flashframe.ingest import setup_db_and_ingest
+    fake_tool = FakeRunQueryTool()
+    await setup_db_and_ingest(fake_tool, "scan_id")
+    
+    queries = fake_tool.queries
+    inserts = [q for q in queries if "INSERT INTO frame_metrics VALUES" in q]
+    
+    assert len(inserts) == 1
+    assert inserts[0].count("('scan_") == 5000
