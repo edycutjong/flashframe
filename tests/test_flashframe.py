@@ -312,3 +312,175 @@ def test_verdict_missing_fields_raises():
     payload = '{"passed": true, "frame_start": 10}'
     with pytest.raises(ValidationError):
         Verdict.model_validate_json(payload)
+class ShapeFakeRunQueryTool(FakeRunQueryTool):
+    def __init__(self, shape=None, error_attr=False, error_dict=False, return_val=None, read_back_row=None):
+        super().__init__(read_back_row=read_back_row)
+        self.shape = shape
+        self.error_attr = error_attr
+        self.error_dict = error_dict
+        self.return_val = return_val
+
+    async def run_async(self, args, tool_context=None):
+        self.queries.append(args.get("query", ""))
+        
+        if self.error_attr:
+            class ErrRes:
+                isError = True
+            return ErrRes()
+            
+        if self.error_dict:
+            return {"isError": True}
+            
+        if self.shape == "content_attr":
+            class Item:
+                text = self.return_val
+            class Res:
+                content = [Item()]
+            return Res()
+            
+        if self.shape == "text_attr":
+            class Res:
+                text = self.return_val
+            return Res()
+            
+        if self.shape == "list_attr":
+            class Item:
+                text = self.return_val
+            return [Item()]
+            
+        if self.shape == "fallback":
+            rv = self.return_val
+            class Res:
+                def __str__(self):
+                    return rv
+            return Res()
+            
+        if self.shape == "rows":
+            class Item:
+                text = '{"rows": ' + self.return_val + '}'
+            class Res:
+                content = [Item()]
+            return Res()
+
+        if self.shape == "unparseable":
+            class Item:
+                text = 'not json'
+            class Res:
+                content = [Item()]
+            return Res()
+            
+        # certify custom returns for readback
+        if self.shape == "certify_falsy" and "SELECT *" in args.get("query", ""):
+            return None
+            
+        if self.shape == "certify_is_error" and "SELECT *" in args.get("query", ""):
+            return {"isError": True}
+            
+        if self.shape == "certify_empty_rows" and "SELECT *" in args.get("query", ""):
+            return {"content": [{"text": '{"columns": ["a"], "rows": []}'}]}
+            
+        if self.shape == "certify_json_list" and "SELECT *" in args.get("query", ""):
+            return {"content": [{"text": self.return_val}]}
+            
+        if self.shape == "certify_bare_object" and "SELECT *" in args.get("query", ""):
+            return {"content": [{"text": self.return_val}]}
+            
+        if self.shape == "certify_malformed_json" and "SELECT *" in args.get("query", ""):
+            return {"content": [{"text": "{"}]}
+            
+        return await super().run_async(args, tool_context)
+
+
+@pytest.mark.asyncio
+async def test_detect_sql_error_attr():
+    from flashframe.detect import detect_violations
+    with pytest.raises(Exception, match="SQL Error: .*"):
+        await detect_violations(ShapeFakeRunQueryTool(error_attr=True), "scan1")
+
+@pytest.mark.asyncio
+async def test_detect_sql_error_dict():
+    from flashframe.detect import detect_violations
+    with pytest.raises(Exception, match="SQL Error: .*"):
+        await detect_violations(ShapeFakeRunQueryTool(error_dict=True), "scan1")
+
+@pytest.mark.asyncio
+async def test_detect_shape_content_attr():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="content_attr", return_val='{"a": 1}'), "scan1")
+    assert res == '{"a": 1}'
+
+@pytest.mark.asyncio
+async def test_detect_shape_text_attr():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="text_attr", return_val='{"b": 2}'), "scan1")
+    assert res == '{"b": 2}'
+
+@pytest.mark.asyncio
+async def test_detect_shape_list():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="list_attr", return_val='{"c": 3}'), "scan1")
+    assert res == '{"c": 3}'
+
+@pytest.mark.asyncio
+async def test_detect_shape_fallback():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="fallback", return_val='{"d": 4}'), "scan1")
+    assert res == '{"d": 4}'
+
+@pytest.mark.asyncio
+async def test_detect_shape_rows():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="rows", return_val='[{"e": 5}]'), "scan1")
+    assert res == '[{"e": 5}]'
+
+@pytest.mark.asyncio
+async def test_detect_unparseable():
+    from flashframe.detect import detect_violations
+    res = await detect_violations(ShapeFakeRunQueryTool(shape="unparseable"), "scan1")
+    assert res == '[]'
+
+@pytest.mark.asyncio
+async def test_certify_res2_falsy(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    with pytest.raises(RuntimeError, match="Ledger insertion failed: no row returned on read-back."):
+        await write_certificate(ShapeFakeRunQueryTool(shape="certify_falsy"), "scan1", True, 10, 20, 6.25, "cause", "rem")
+
+@pytest.mark.asyncio
+async def test_certify_res2_is_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    with pytest.raises(RuntimeError) as excinfo:
+        await write_certificate(ShapeFakeRunQueryTool(shape="certify_is_error"), "scan1", True, 10, 20, 6.25, "cause", "rem")
+    assert str(excinfo.value) == "Ledger read-back error: {'isError': True}"
+    assert excinfo.value.__cause__ is None
+
+@pytest.mark.asyncio
+async def test_certify_res2_empty_rows(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    with pytest.raises(RuntimeError, match="Ledger insertion failed: no row returned on read-back."):
+        await write_certificate(ShapeFakeRunQueryTool(shape="certify_empty_rows"), "scan1", True, 10, 20, 6.25, "cause", "rem")
+
+@pytest.mark.asyncio
+async def test_certify_res2_json_list(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    cert = await write_certificate(ShapeFakeRunQueryTool(shape="certify_json_list", return_val='[{"measured": 6.25, "frame_start": 10, "cause": "list_cause"}]'), "scan1", True, 10, 20, 6.25, "cause", "rem")
+    assert cert["cause"] == "list_cause"
+
+@pytest.mark.asyncio
+async def test_certify_res2_bare_object(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    cert = await write_certificate(ShapeFakeRunQueryTool(shape="certify_bare_object", return_val='{"measured": 6.25, "frame_start": 10, "cause": "obj_cause"}'), "scan1", True, 10, 20, 6.25, "cause", "rem")
+    assert cert["cause"] == "obj_cause"
+
+@pytest.mark.asyncio
+async def test_certify_res2_malformed_json(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from flashframe.certify import write_certificate
+    import json
+    with pytest.raises(RuntimeError, match="Ledger insertion failed: .*") as excinfo:
+        await write_certificate(ShapeFakeRunQueryTool(shape="certify_malformed_json"), "scan1", True, 10, 20, 6.25, "cause", "rem")
+    assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
