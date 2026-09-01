@@ -1,28 +1,34 @@
 :root {
+    /* Spec tokens */
     --bg: #0B0D10;
-    --bg-base: #0B0D10;
     --surface: #141821;
     --grid: #242B38;
-    --text-high: #E6EAF0;
-    --text-mid: #8A94A6;
-    --text-low: #5A6474;
+    --text: #E6EAF0;
+    --text-dim: #8A94A6;
     --pass: #3DD68C;
-    --primary: #3DD68C;
     --amber: #F0B429;
     --fail: #FF4D4D;
-    --accent: #FF4D4D;
     --threshold: rgba(255, 255, 255, 0.6);
-    --band-fill: rgba(255, 77, 77, 0.4);
-    --band-hover: rgba(255, 77, 77, 0.8);
-    --focus-ring: var(--primary);
+    
+    /* Semantic aliases */
+    --measured: var(--text);
+    --adjudicated: var(--amber);
+    --published: var(--threshold);
+
+    /* Typography */
     --font-display: 'Inter Tight', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* Implementation-level tokens not in the spec */
+    --band-fill: rgba(255, 77, 77, 0.4);
+    --band-hover: rgba(255, 77, 77, 0.8);
+    --focus-ring: var(--pass);
 }
 
 
 body {
     background-color: var(--bg);
-    color: var(--text-high);
+    color: var(--text);
     font-family: var(--font-display);
     margin: 0;
     padding: 0;
@@ -75,30 +81,30 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .verdict-meta {
     font-size: 1.1rem;
-    color: var(--text-mid);
+    color: var(--text-dim);
 }
 
 .btn {
     background: var(--grid);
-    border: 1px solid var(--text-low);
-    color: var(--text-high);
+    border: 1px solid var(--text-dim);
+    color: var(--text);
     padding: 0.5rem 1rem;
     cursor: pointer;
     font-size: 1rem;
     border-radius: 4px;
 }
 .btn.primary {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: var(--bg-base);
+    background: var(--pass);
+    border-color: var(--pass);
+    color: var(--bg);
 }
 .btn:hover {
     background: var(--grid);
 }
 .btn.primary:hover {
-    background: var(--bg-base);
-    color: var(--primary);
-    border-color: var(--primary);
+    background: var(--bg);
+    color: var(--pass);
+    border-color: var(--pass);
 }
 .btn:disabled {
     opacity: 0.5;
@@ -130,7 +136,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .timeline-curve {
     fill: rgba(255, 255, 255, 0.1);
-    stroke: var(--text-high);
+    stroke: var(--text);
     stroke-width: 1.5px;
     transition: all 0.3s;
 }
@@ -160,7 +166,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     justify-content: space-between;
     font-family: var(--font-mono);
     font-size: 0.9rem;
-    color: var(--text-mid);
+    color: var(--text-dim);
     margin-top: 0.5rem;
 }
 
@@ -227,7 +233,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     width: 106px;
     height: 100%;
     background: var(--grid);
-    border: 1px solid var(--bg-base);
+    border: 1px solid var(--bg);
 }
 
 .card-grid {
@@ -238,7 +244,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .adjudicated-block blockquote {
     background: var(--surface);
-    border-left: 4px solid var(--text-low);
+    border-left: 4px solid var(--text-dim);
     padding: 1rem;
     margin: 0;
     font-style: italic;
@@ -303,7 +309,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     padding: 1rem;
     overflow-x: auto;
     font-family: var(--font-mono);
-    color: var(--primary);
+    color: var(--pass);
 }
 
 .stage-list {
@@ -313,7 +319,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 }
 .stage {
     padding: 0.5rem 0;
-    color: var(--text-mid);
+    color: var(--text-dim);
 }
 .stage.done {
     color: var(--pass);
@@ -329,7 +335,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     border-radius: 8px;
 }
 .drop-zone {
-    border: 2px dashed var(--text-low);
+    border: 2px dashed var(--text-dim);
     padding: 3rem;
     text-align: center;
     margin-bottom: 1rem;
@@ -337,12 +343,12 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 
 .measured-value {
     font-family: var(--font-mono);
-    color: var(--text-high);
+    color: var(--measured);
 }
 .adjudicated-value {
-    color: var(--amber);
+    color: var(--adjudicated);
 }
 .published-value {
-    color: var(--threshold);
-    border-bottom: 1px dashed var(--threshold);
+    color: var(--published);
+    border-bottom: 1px dashed var(--published);
 }
