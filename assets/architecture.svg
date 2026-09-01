@@ -15,7 +15,7 @@
   <!-- Startup / Lifespan Preflight Lane -->
   <g>
     <line x1="280" y1="-40" x2="380" y2="-40" stroke="#8A94A6" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-dim)"/>
-    <text x="330" y="-48" fill="#8A94A6" font-size="14" text-anchor="middle">startup (lifespan)</text>
+    <text x="370" y="-48" fill="#8A94A6" font-size="14" text-anchor="end">startup (lifespan)</text>
   </g>
   <g>
     <rect x="380" y="-70" width="300" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
@@ -126,7 +126,7 @@
   </g>
   <g>
     <line x1="800" y1="820" x2="560" y2="820" stroke="#8A94A6" stroke-width="2" marker-end="url(#arrow-dim)"/>
-    <text x="680.0" y="810.0" fill="#8A94A6" font-size="14" text-anchor="middle">renders certificate + filmstrip</text>
+    <text x="770.0" y="810.0" fill="#8A94A6" font-size="14" text-anchor="end">renders certificate + filmstrip</text>
   </g>
   <rect x="1400" y="70" width="300" height="480" rx="8" fill="#242B38" stroke="#F0B429" stroke-width="3" stroke-dasharray="12,6"/>
   <text x="1420" y="100" fill="#F0B429" font-size="16" font-weight="bold">ClickHouse MCP Boundary</text>
