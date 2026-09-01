@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 950" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -100 1800 1050" font-family="ui-sans-serif, system-ui, sans-serif">
   <defs>
     <marker id="arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 1 L 10 5 L 0 9 z" fill="#8A94A6"/>
@@ -12,6 +12,20 @@
     </marker>
   </defs>
   <rect width="100%" height="100%" fill="transparent"/>
+  <!-- Startup / Lifespan Preflight Lane -->
+  <g>
+    <line x1="280" y1="-40" x2="380" y2="-40" stroke="#8A94A6" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-dim)"/>
+    <text x="330" y="-48" fill="#8A94A6" font-size="14" text-anchor="middle">startup (lifespan)</text>
+  </g>
+  <g>
+    <rect x="380" y="-70" width="300" height="60" rx="4" fill="#242B38" stroke="#8A94A6" stroke-width="2"/>
+    <text x="390" y="-46" fill="#E6EAF0" font-size="16" font-weight="bold">run_schema_preflight</text>
+    <text x="390" y="-26" fill="#8A94A6" font-size="14">web.py — startup, read-only</text>
+  </g>
+  <g>
+    <path d="M 680 -40 L 1550 -40 L 1550 70" fill="none" stroke="#8A94A6" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-dim)"/>
+    <text x="1115" y="-48" fill="#8A94A6" font-size="14" text-anchor="middle">list_databases · list_tables · run_chdb_select_query (thresholds.csv, zero ETL)</text>
+  </g>
   <text x="130" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">CLIENT</text>
   <text x="390" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">WEB SERVER</text>
   <text x="730" y="40" fill="#8A94A6" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">PIPELINE ORCHESTRATION</text>
