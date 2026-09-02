@@ -27,6 +27,22 @@
 
 ---
 
+## 📸 See it in Action
+
+<div align="center">
+  <img src="assets/screenshot-report.png" alt="Flashframe report — hard_fail_strobe.mp4 FAIL, frames 740-760 at 6.25 flashes/sec" width="100%">
+</div>
+
+This is a real scan of the bundled `hard_fail_strobe.mp4` seed clip, resulting in a FAIL verdict with 1 violation across 1497 source frames. The flagged span at frames 740-760 (timecode 29.60s-30.40s) displays MEASURED (ClickHouse, 10fps) 6.25 flashes/sec against a THRESHOLD (Ofcom 2.12) of 3.00 flashes/sec, while ADJUDICATED (Gemini) names the cause as rapid alternating luminance transitions across full screen frames, along with a remediation. A Certificate Ledger Entry below shows the exact SQL read-back query and the stored row, reinforcing that measurement and judgement are shown as separate, separately-labelled things — ClickHouse measures, Gemini judges.
+
+Note that the Review Clip panel reads 'Playback disabled by OS reduced-motion preference' because the capture honoured `prefers-reduced-motion` — this is the product refusing to autoplay strobing content at a viewer who asked for reduced motion, not a broken player.
+
+<div align="center">
+  <img src="assets/screenshot-home.png" alt="Flashframe home — three bundled seed clips" width="100%">
+</div>
+
+The zero-config entry point with the three bundled seed clips ready to scan.
+
 ## 💡 The Problem & Solution
 
 ### The Problem
