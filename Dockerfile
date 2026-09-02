@@ -12,5 +12,8 @@ RUN pip install --no-cache-dir "mcp-clickhouse[chdb]"
 
 COPY . /app
 
+# Register package metadata so /healthz can report a real version (not to install dependencies)
+RUN pip install --no-cache-dir --no-deps -e .
+
 EXPOSE 7860
 CMD uvicorn web:app --host 0.0.0.0 --port ${PORT:-7860}
