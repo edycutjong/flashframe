@@ -16,4 +16,5 @@ COPY . /app
 RUN pip install --no-cache-dir --no-deps -e .
 
 EXPOSE 7860
-CMD uvicorn web:app --host 0.0.0.0 --port ${PORT:-7860}
+# exec makes uvicorn PID 1 so it receives SIGTERM, and sh -c is needed because Railway sets PORT at runtime.
+CMD ["sh", "-c", "exec uvicorn web:app --host 0.0.0.0 --port ${PORT:-7860}"]
