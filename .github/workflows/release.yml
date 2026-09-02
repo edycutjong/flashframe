@@ -1,5 +1,12 @@
 name: release
 
+# The version in pyproject.toml is the single source of truth.
+# Bump it in a normal commit; on push to main this workflow creates the matching
+# vMAJOR.MINOR.PATCH tag and a GitHub Release. It never commits anything back, so
+# main's commit history stays exactly as authored.
+# Pushing a tag does not re-trigger this workflow: the push trigger is filtered to
+# the main branch, and a tag ref does not match it.
+
 on:
   push:
     branches: [ "main" ]
@@ -19,43 +26,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0        # full history and tags — we test whether the tag exists
 
-      - name: Compute next version from Angular commits
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Read version from pyproject.toml
         id: ver
         run: |
           set -euo pipefail
-          LAST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST" ]; then
-            RANGE=""; CUR="0.0.0"
+          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::pyproject version '$VERSION' is not MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          TAG="v$VERSION"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists — version unchanged, nothing to release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            RANGE="${LAST}..HEAD"; CUR="${LAST#v}"
+            echo "Version $VERSION has no tag yet — releasing $TAG."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-          LOG=$(git log --format=%B $RANGE)
-          if [ -z "$(echo "$LOG" | tr -d '[:space:]')" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-
-          BUMP=none
-          echo "$LOG" | grep -qE '^(feat|fix|perf)(\(.+\))?!:|BREAKING CHANGE:' && BUMP=major
-          [ "$BUMP" = none ] && echo "$LOG" | grep -qE '^feat(\(.+\))?:'        && BUMP=minor
-          [ "$BUMP" = none ] && echo "$LOG" | grep -qE '^(fix|perf)(\(.+\))?:'  && BUMP=patch
-          if [ "$BUMP" = none ]; then
-            echo "No releasable commits since ${LAST:-the beginning}."
-            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-
-          IFS=. read -r MA MI PA <<< "$CUR"
-          case "$BUMP" in
-            major) MA=$((MA+1)); MI=0; PA=0 ;;
-            minor) MI=$((MI+1)); PA=0 ;;
-            patch) PA=$((PA+1)) ;;
-          esac
-          NEXT="v${MA}.${MI}.${PA}"
-          echo "Bump: $BUMP  ${LAST:-none} -> $NEXT"
-          echo "next=$NEXT"  >> "$GITHUB_OUTPUT"
-          echo "bump=$BUMP"  >> "$GITHUB_OUTPUT"
-          echo "skip=false"  >> "$GITHUB_OUTPUT"
 
       - name: Tag and publish the release
         if: steps.ver.outputs.skip == 'false'
@@ -65,6 +60,7 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.ver.outputs.next }}" -m "${{ steps.ver.outputs.next }}"
-          git push origin "${{ steps.ver.outputs.next }}"
-          gh release create "${{ steps.ver.outputs.next }}" --generate-notes --title "${{ steps.ver.outputs.next }}"
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "${{ steps.ver.outputs.tag }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            --generate-notes --title "${{ steps.ver.outputs.tag }}"
