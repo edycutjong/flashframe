@@ -1,102 +1,56 @@
-![Flashframe Icon](assets/icon-animated.svg)
+<div align="center">
+  <img src="assets/icon-animated.svg" alt="Flashframe Icon" width="144">
+  <h1>Flashframe 🎬</h1>
+  <p><em>Upload a locked cut, get a broadcast photosensitivity safety certificate — before you pay for the lab pass.</em></p>
+  <img src="assets/hero-animated.svg" alt="Flashframe — broadcast photosensitivity pre-check" width="100%">
 
-# Flashframe
+  <br/>
 
-> Upload a locked cut, get a broadcast photosensitivity safety certificate — before you pay for the lab pass.
+  <!-- ROW 1: CTA badges, for-the-badge style -->
+  [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://flashframe-production.up.railway.app)
+  [![Demo Video](https://img.shields.io/badge/🎬_Demo-Video-ef4444?style=for-the-badge)](https://youtu.be/rPxGyYpVfAE)
+  [![Judge Page](https://img.shields.io/badge/⚖️_Judge-Page-8b5cf6?style=for-the-badge)](https://flashframe-production.up.railway.app/judge)
+  [![Devpost](https://img.shields.io/badge/Devpost-Agentic_Cinema-003E54?style=for-the-badge)](https://agentic-cinema.devpost.com/)
 
-![Flashframe Hero](assets/hero-animated.svg)
+  <br/>
 
-**Live URL:** https://flashframe-production.up.railway.app  
-**Demo Video:** https://youtu.be/rPxGyYpVfAE  
-**Judge Page:** https://flashframe-production.up.railway.app/judge  
+  <!-- ROW 2: tech badges, flat style -->
+  ![Python](https://img.shields.io/badge/Python-3.13-blue?style=flat&logo=python&logoColor=white)
+  ![ClickHouse](https://img.shields.io/badge/ClickHouse-Cloud-yellow?style=flat&logo=clickhouse&logoColor=black)
+  ![Gemini](https://img.shields.io/badge/Gemini-3.6--flash-orange?style=flat&logo=googlegemini&logoColor=white)
+  ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+  [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)](LICENSE)
+  [![CI](https://github.com/edycutjong/flashframe/actions/workflows/ci.yml/badge.svg)](https://github.com/edycutjong/flashframe/actions/workflows/ci.yml)
 
-![Python](https://img.shields.io/badge/Python-3.13-blue) ![ClickHouse](https://img.shields.io/badge/ClickHouse-Cloud-yellow) ![Gemini](https://img.shields.io/badge/Gemini-3.6--flash-orange) ![FastAPI](https://img.shields.io/badge/FastAPI-green)
+</div>
 
 ---
 
-## What it does
+## 💡 The Problem & Solution
+
+### The Problem
 
 Flashframe is a screening-grade pre-check against published ITU-R BT.1702 / Ofcom 2.12 / NAB-Japan criteria. 
+
+### The Solution
 
 Per-frame ffmpeg photometrics stream into ClickHouse; sliding-window SQL catches every flash sequence violating Ofcom 2.12 / ITU-R BT.1702 and resolves it to an exact frame span; Gemini reviews each flagged span and names the on-screen cause.
 
 *(Note: Flashframe is a pre-check tool, and does not imply a lab pass or legal clearance.)*
 
----
-
-## Architecture
+## 🏗️ Architecture & Tech Stack
 
 ![Architecture](assets/architecture.svg)
 
----
+| Technology | Role |
+|---|---|
+| Python | Application runtime and pipeline orchestration |
+| ClickHouse | Vectorized sliding-window photometric analysis via SQL |
+| Gemini | Multimodal adjudication of flagged visual spans |
+| FastAPI | HTTP API and web server |
+| ffmpeg | Frame-by-frame photometric extraction |
 
-## Quickstart
-
-**Zero-config path:** Open the live URL (https://flashframe-production.up.railway.app), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.
-
-**Local path:** 
-```bash
-git clone https://github.com/edycutjong/flashframe.git
-cd flashframe
-uv pip install -e . -r requirements.txt
-# credentials from ~/.config
-python -m flashframe.cli
-```
-
----
-
-## Results
-
-| Clip | Ground truth | Observed (SQL-measured) |
-|---|---|---|
-| `control_clean.mp4` | PASS, 0 spans | PASS, **zero** flagged spans |
-| `hard_fail_strobe.mp4` | FAIL, frames 739-760 @ 6.25 flashes/sec | FAIL, frames 740-760 @ **6.25** — exact |
-| `borderline_screen_area.mp4` | PASS only after resample, 2.5 flashes/sec | PASS, frames 1025-1055 @ **2.82** (+12.9 %) |
-
-**Benchmark** — Conditions: 2026-09-01, freshly generated 138,240-frame clip (92 min 9.6 s at 25 fps), `frame_metrics` truncated to a single scan beforehand, N=5 iterations per run, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1.
-
-We report the warm run (Run B) as the steady-state figure, and disclose the cold run (Run A) alongside it. Run A's p95 of 14.252 s on DETECT is a ClickHouse Cloud cold-start spike.
-
-**Run B (Warm / Steady-State):**
-| Stage | p50 | p95 |
-|---|---|---|
-| INGEST (bulk INSERT) | 2.888 s | 8.843 s |
-| **DETECT (windowed SQL, data resident)** | **0.550 s** | **0.940 s** |
-| TOTAL | 3.548 s | 9.471 s |
-
-**Run A (First Run after truncation - Cold):**
-| Stage | p50 | p95 |
-|---|---|---|
-| INGEST | 2.486 s | 3.379 s |
-| DETECT | 0.423 s | 14.252 s |
-| TOTAL | 2.910 s | 16.521 s |
-
-*Note on timings: ffmpeg extraction and Gemini adjudication are excluded from the timed region. Manifest offset 57896 → detected span 57896, on all 5 iterations of both runs — 10/10, zero mismatches. Control feature: 0 false positives.*
-
-**Disclose, don't bury:** INGEST is round-trip bound and likely dominated by MCP/HTTP rather than ClickHouse. Reporting the stages separately is deliberate — one blended TOTAL would incorrectly credit ClickHouse with transport latency.
-
----
-
-## The resample loop
-
-First-pass extraction runs at 10 fps. At 10 fps the Nyquist limit is 5 Hz, so an N=5 alternation **aliases**: `borderline_screen_area` measured **2.08 flashes/sec** and looked like a violation. The ADK agent noticed the verdict was borderline and called `resample_frames` itself — 30 fps, then 60 fps — where the rate resolved to **2.82 flashes/sec** (against a ground truth of 2.5), correctly under the 3.0 limit. **PASS.** A naive single-pass tool reports a false FAIL on that clip.
-
-The same mechanism corrected an *understated* hazard: `hard_fail_strobe` measured 5.0 flashes/sec at 10 fps and resolved to 6.25 after escalation — the exact constructed ground truth.
-
-Console evidence, unedited:
-```
-Flagged span 1025-1055 (2.0833333333333335 flashes/sec)...
->>> resample_frames(span, 30) <<<
->>> resample_frames(span, 60) <<<
->>> adjudicate(1025, 1055) <<<
->>> certify <<<
-```
-
-Why not sample everything at 60 fps? Cost — a 90-minute feature at 60 fps is 6× the extraction and 6× the rows. The agent escalates only where a verdict is uncertain.
-
----
-
-## Sponsor-exclusivity defense
+## 🏆 ClickHouse & Gemini Integration
 
 **Remove ClickHouse and you need several systems.** 
 
@@ -175,19 +129,74 @@ resp = client.models.generate_content(
 
 **The division of labour is the architecture, and it is stated in the product:** ClickHouse measures, Gemini judges. The report screen labels them separately — `MEASURED (ClickHouse, 60fps)` versus `ADJUDICATED (Gemini)`. This structural approach guarantees that we get deterministic measurements from ClickHouse while relying on Gemini's multimodal reasoning strictly for visual understanding, identifying causes, and providing remediation advice.
 
----
+## 📊 Engineering Rigor
 
-## METHODS
+| Clip | Ground truth | Observed (SQL-measured) |
+|---|---|---|
+| `control_clean.mp4` | PASS, 0 spans | PASS, **zero** flagged spans |
+| `hard_fail_strobe.mp4` | FAIL, frames 739-760 @ 6.25 flashes/sec | FAIL, frames 740-760 @ **6.25** — exact |
+| `borderline_screen_area.mp4` | PASS only after resample, 2.5 flashes/sec | PASS, frames 1025-1055 @ **2.82** (+12.9 %) |
 
-- **Screening-grade, not a certified lab test.** Flashframe measures **luma code value (Y′)** from the decoded signal under an assumed reference display. A certified test measures **photometric luminance at a calibrated display.**
-- **Screen area is a 3×3 tiled proxy**, not true per-pixel measurement.
-- **Measured accuracy against constructed ground truth is exact on the full-field case and +12.9 % on the small-area case, biased toward over-reporting.** For a screening tool that is the safer direction — it errs toward flagging for human review rather than clearing a genuine hazard — but a clip near the limit can be flagged conservatively. The residual bias was **disclosed rather than tuned away**, because adding a correction factor would invalidate the claim that thresholds come from published Ofcom / ITU-R criteria.
-- **Gemini's figures are visual estimates, not measurements.** Across runs its flash-rate estimates were 5.0, 5.2, 5.7 and 6.25 against a ground truth of 6.25; screen area 17.4% and 20.3% against a true 17.36%. Every estimate fell on the correct side of its threshold — which is what the product needs from it — but the certificate's measured value comes from the SQL, never from Gemini.
-- **Thresholds ship as inspectable data** (`thresholds.csv`), cited to source, so anyone can verify the arithmetic against the published criteria.
+**Benchmark** — Conditions: 2026-09-01, freshly generated 138,240-frame clip (92 min 9.6 s at 25 fps), `frame_metrics` truncated to a single scan beforehand, N=5 iterations per run, ClickHouse Cloud 1 replica / 8 GiB / 2 vCPU / AWS ap-southeast-1.
 
----
+We report the warm run (Run B) as the steady-state figure, and disclose the cold run (Run A) alongside it. Run A's p95 of 14.252 s on DETECT is a ClickHouse Cloud cold-start spike.
 
-## Reproduce
+**Run B (Warm / Steady-State):**
+| Stage | p50 | p95 |
+|---|---|---|
+| INGEST (bulk INSERT) | 2.888 s | 8.843 s |
+| **DETECT (windowed SQL, data resident)** | **0.550 s** | **0.940 s** |
+| TOTAL | 3.548 s | 9.471 s |
+
+**Run A (First Run after truncation - Cold):**
+| Stage | p50 | p95 |
+|---|---|---|
+| INGEST | 2.486 s | 3.379 s |
+| DETECT | 0.423 s | 14.252 s |
+| TOTAL | 2.910 s | 16.521 s |
+
+*Note on timings: ffmpeg extraction and Gemini adjudication are excluded from the timed region. Manifest offset 57896 → detected span 57896, on all 5 iterations of both runs — 10/10, zero mismatches. Control feature: 0 false positives.*
+
+**Disclose, don't bury:** INGEST is round-trip bound and likely dominated by MCP/HTTP rather than ClickHouse. Reporting the stages separately is deliberate — one blended TOTAL would incorrectly credit ClickHouse with transport latency.
+
+## 🔁 The Resample Loop
+
+First-pass extraction runs at 10 fps. At 10 fps the Nyquist limit is 5 Hz, so an N=5 alternation **aliases**: `borderline_screen_area` measured **2.08 flashes/sec** and looked like a violation. The ADK agent noticed the verdict was borderline and called `resample_frames` itself — 30 fps, then 60 fps — where the rate resolved to **2.82 flashes/sec** (against a ground truth of 2.5), correctly under the 3.0 limit. **PASS.** A naive single-pass tool reports a false FAIL on that clip.
+
+The same mechanism corrected an *understated* hazard: `hard_fail_strobe` measured 5.0 flashes/sec at 10 fps and resolved to 6.25 after escalation — the exact constructed ground truth.
+
+Console evidence, unedited:
+```
+Flagged span 1025-1055 (2.0833333333333335 flashes/sec)...
+>>> resample_frames(span, 30) <<<
+>>> resample_frames(span, 60) <<<
+>>> adjudicate(1025, 1055) <<<
+>>> certify <<<
+```
+
+Why not sample everything at 60 fps? Cost — a 90-minute feature at 60 fps is 6× the extraction and 6× the rows. The agent escalates only where a verdict is uncertain.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+
+### Installation
+
+**Zero-config path:** Open the live URL (https://flashframe-production.up.railway.app), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.
+
+**Local path:** 
+```bash
+git clone https://github.com/edycutjong/flashframe.git
+cd flashframe
+uv pip install -e . -r requirements.txt
+# credentials from ~/.config
+python -m flashframe.cli
+```
+
+## 🧪 Testing & CI
+
+The test suite consists of 99 tests. Exactly **96 tests pass** with no credentials at all — the number a judge gets on a fresh clone. The remainder are 3 live-ClickHouse integration tests which skip cleanly without credentials, and they cover schema discovery, windowed SQL correctness, and chDB threshold joins. A CI workflow at `.github/workflows/ci.yml` runs the credential-free suite on every push and pull request with no secrets configured, so the green tick means the same thing a judge's own clone would give them. The suite includes defect-named regression tests: `test_span_duration_off_by_one` guards against the span-duration off-by-one that inflated measured flash rates, `test_gemini_estimate_separate_from_measurement` guards against the provenance bug that put Gemini's visual estimate into the SQL-measured field, and a third guards against the `report` handler swallowing an `HTTPException` to incorrectly return HTTP 200 instead of a 404 for an unknown `scan_id`. Statement coverage is 100% on 604 statements.
 
 Regenerate all three seed clips and the 138,240-frame benchmark clip from source in one command each.
 
@@ -203,13 +212,20 @@ python bench.py
 ```
 *(A judge must be able to re-derive every number above by running the code natively.)*
 
----
+## 🔬 Methods
 
-## Known Limitations
+- **Screening-grade, not a certified lab test.** Flashframe measures **luma code value (Y′)** from the decoded signal under an assumed reference display. A certified test measures **photometric luminance at a calibrated display.**
+- **Screen area is a 3×3 tiled proxy**, not true per-pixel measurement.
+- **Measured accuracy against constructed ground truth is exact on the full-field case and +12.9 % on the small-area case, biased toward over-reporting.** For a screening tool that is the safer direction — it errs toward flagging for human review rather than clearing a genuine hazard — but a clip near the limit can be flagged conservatively. The residual bias was **disclosed rather than tuned away**, because adding a correction factor would invalidate the claim that thresholds come from published Ofcom / ITU-R criteria.
+- **Gemini's figures are visual estimates, not measurements.** Across runs its flash-rate estimates were 5.0, 5.2, 5.7 and 6.25 against a ground truth of 6.25; screen area 17.4% and 20.3% against a true 17.36%. Every estimate fell on the correct side of its threshold — which is what the product needs from it — but the certificate's measured value comes from the SQL, never from Gemini.
+- **Thresholds ship as inspectable data** (`thresholds.csv`), cited to source, so anyone can verify the arithmetic against the published criteria.
+
+## ⚠️ Known Limitations
 
 - Gemini API free tier: **5 requests/minute, 20/day per model**. The resample loop is multi-call, so a demo run may need spacing. The app catches 429 and says so rather than failing blankly.
 - ClickHouse Cloud auto-suspends when idle; a cold first query costs **~25 s**. The server issues a warm-up query on startup and the UI says what is happening.
 - Ingest is round-trip bound (see benchmark).
 
-## Test Suite
-The test suite consists of 99 tests. Exactly **96 tests pass** with no credentials at all — the number a judge gets on a fresh clone. The remainder are 3 live-ClickHouse integration tests which skip cleanly without credentials, and they cover schema discovery, windowed SQL correctness, and chDB threshold joins. A CI workflow at `.github/workflows/ci.yml` runs the credential-free suite on every push and pull request with no secrets configured, so the green tick means the same thing a judge's own clone would give them. The suite includes defect-named regression tests: `test_span_duration_off_by_one` guards against the span-duration off-by-one that inflated measured flash rates, `test_gemini_estimate_separate_from_measurement` guards against the provenance bug that put Gemini's visual estimate into the SQL-measured field, and a third guards against the `report` handler swallowing an `HTTPException` to incorrectly return HTTP 200 instead of a 404 for an unknown `scan_id`. Statement coverage is 100% on 604 statements.
+## 📄 License
+
+MIT. See [LICENSE](LICENSE) for details.
