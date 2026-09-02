@@ -180,6 +180,11 @@ Why not sample everything at 60 fps? Cost — a 90-minute feature at 60 fps is 6
 
 ### Prerequisites
 
+The hosted zero-config path needs none of this — it is browser-only. For the local path, you will need:
+- **Python 3.13** (from the `Dockerfile`)
+- **`ffmpeg`** binary installed on your system
+- **ClickHouse credentials** living outside the repo, read from `CLICKHOUSE_HOST`, `CLICKHOUSE_USER`, and `CLICKHOUSE_PASSWORD` environment variables
+- **Gemini credentials** living outside the repo, read from the `GEMINI_API_KEY` environment variable
 
 ### Installation
 
