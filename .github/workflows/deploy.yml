@@ -1,0 +1,130 @@
+name: deploy
+
+# Deploys to Railway on every push to main, but only after the credential-free test
+# suite passes, and only counts as successful if the live site actually serves the
+# routes afterwards.
+#
+# The verify job exists because of a real incident: the /judge route reached
+# origin/main on 2026-09-01 and production still 404'd on it a day later, with
+# nothing anywhere reporting the drift. A deploy step alone would not have caught
+# that -- a silently failed deploy looks exactly like no deploy from the outside.
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false      # never cancel a deploy mid-flight
+
+permissions:
+  contents: read
+
+jobs:
+  # ---- gate: never deploy a red tree -------------------------------------
+  gate:
+    name: Test gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+          pip install pytest pytest-asyncio
+
+      - name: Run the credential-free suite
+        run: pytest -q tests/
+
+  # ---- deploy ------------------------------------------------------------
+  deploy:
+    name: Deploy to Railway
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://flashframe.edycu.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      # railway up uploads a tarball and carries no git metadata, so Railway's own
+      # RAILWAY_GIT_COMMIT_SHA is never populated for CLI deploys. We set the SHA
+      # ourselves so /healthz can report which commit is actually running.
+      # --skip-deploys stops this from triggering a second, redundant deploy.
+      - name: Stamp the commit SHA onto the service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -uo pipefail
+          railway variables --set "APP_COMMIT_SHA=${{ github.sha }}" \
+                            --service flashframe --skip-deploys \
+            || railway variables --set "APP_COMMIT_SHA=${{ github.sha }}" --service flashframe
+
+      - name: Deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service flashframe --ci
+
+  # ---- verify: the reason this workflow exists ---------------------------
+  verify:
+    name: Verify live deployment
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for the live site to serve THIS commit, then assert the routes
+        run: |
+          set -uo pipefail
+          BASE="https://flashframe.edycu.dev"
+          WANT="${{ github.sha }}"
+
+          # Poll /healthz until the running container reports this exact commit.
+          # This is the check that would have caught the 2026-09-01 drift: probing
+          # for HTTP 200 alone passes happily against a stale container.
+          LIVE=""
+          for i in $(seq 1 40); do
+            LIVE=$(curl -s -L --max-time 20 "$BASE/healthz" | jq -r '.commit // empty' 2>/dev/null || echo "")
+            if [ "$LIVE" = "$WANT" ]; then
+              echo "live commit matches: $LIVE"
+              break
+            fi
+            echo "attempt $i: live=${LIVE:-unreachable} want=$WANT — retrying in 10s"
+            sleep 10
+          done
+
+          if [ "$LIVE" != "$WANT" ]; then
+            echo "::error::live site is serving '${LIVE:-unreachable}', expected '$WANT' — the deploy did not take"
+            exit 1
+          fi
+
+          FAIL=0
+          for path in "/" "/judge" "/healthz"; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 20 "$BASE$path" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "OK    $path -> $CODE"
+            else
+              echo "::error::$path returned $CODE (expected 200)"
+              FAIL=1
+            fi
+          done
+
+          # A judge reaching /judge is the whole point of that page. If it is not
+          # served, the deploy has not delivered what the README advertises.
+          exit $FAIL
