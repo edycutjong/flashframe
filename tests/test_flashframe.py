@@ -1179,7 +1179,7 @@ def harness(monkeypatch, tmp_path):
                 tool_call = True
             yield FakeEvent()
             
-    def fake_extraction(video_path, **kwargs):
+    def fake_extraction(video_path, scan_id=None, **kwargs):
         return "test_scan_id"
         
     async def fake_setup(tool, scan_id, video_path, src_fps, tgt_fps):
@@ -1437,7 +1437,7 @@ async def test_resample_frames_cap_and_passthrough(harness, monkeypatch, tmp_pat
     harness.detect_result = '{"frame_start": 200, "frame_end": 220, "flashes": 5.5}'
     
     extracted_args = []
-    def fake_extraction2(video_path, fps_override=None, frame_start=None, frame_end=None):
+    def fake_extraction2(video_path, fps_override=None, frame_start=None, frame_end=None, scan_id=None):
         extracted_args.append((video_path, fps_override, frame_start, frame_end))
         return "new_scan_id_123"
         
@@ -1638,3 +1638,17 @@ async def test_certify_args_and_output(harness, monkeypatch, capsys, tmp_path):
     assert "MEASURED (ClickHouse)          4.57 flashes/sec" in out
     assert "ADJUDICATED (Gemini)           PASS — test_cause" in out
 
+def test_run_extraction_honours_supplied_scan_id(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    fake = MockFfmpegRunner()
+    from flashframe.extract import run_extraction
+    import uuid
+    
+    with patch("flashframe.extract.subprocess.run", fake):
+        # Without scan_id, generates fresh UUID
+        scan_id_fresh = run_extraction("vid.mp4", fps_override=10)
+        assert isinstance(uuid.UUID(scan_id_fresh), uuid.UUID)
+        
+        # With scan_id, returns it
+        scan_id_supplied = run_extraction("vid.mp4", fps_override=10, scan_id="fixed-id")
+        assert scan_id_supplied == "fixed-id"

@@ -3,8 +3,8 @@ import os
 import uuid
 import csv
 
-def run_extraction(video_path, fps_override=None, frame_start=None, frame_end=None):
-    scan_id = str(uuid.uuid4())
+def run_extraction(video_path, fps_override=None, frame_start=None, frame_end=None, scan_id=None):
+    scan_id = scan_id or str(uuid.uuid4())
     
     # Generate filtergraph
     filter_txt = "filter.txt"

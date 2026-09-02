@@ -532,3 +532,11 @@ def test_version_falls_back_to_unknown_when_package_not_installed(monkeypatch):
         raise importlib.metadata.PackageNotFoundError()
     monkeypatch.setattr(importlib.metadata, "version", mock_version)
     assert web._resolve_version() == "unknown"
+
+def test_web_report_resolves_the_scan_id_the_pipeline_wrote(client):
+    res = client.post("/upload", data={"seed_clip": "test_clip"}, follow_redirects=False)
+    assert res.status_code == 303
+    scan_id = res.headers["location"].split("/")[-1]
+    
+    # Assert run_pipeline was called with the SAME scan_id
+    assert web.run_pipeline.call_args[1]["scan_id"] == scan_id

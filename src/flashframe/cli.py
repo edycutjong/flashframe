@@ -93,7 +93,7 @@ rm seg_a.mp4 seg_b.mp4 seg_c.mp4 segments.txt
 def pipeline(video_path):
     asyncio.run(run_pipeline(video_path))
 
-async def run_pipeline(video_path):
+async def run_pipeline(video_path, scan_id=None):
     load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
     env = os.environ.copy()
     
@@ -141,7 +141,7 @@ async def run_pipeline(video_path):
     os.environ["GEMINI_API_KEY"] = api_key
     
     print(f"Extracting {video_path} at 10fps...")
-    scan_id = run_extraction(video_path, fps_override=10)
+    scan_id = run_extraction(video_path, fps_override=10, scan_id=scan_id)
     
     print(f"Ingesting {scan_id}...")
     await setup_db_and_ingest(run_query_tool, scan_id, video_path, 25.0, 10.0)
