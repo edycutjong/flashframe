@@ -7,9 +7,9 @@
   <br/>
 
   <!-- ROW 1: CTA badges, for-the-badge style -->
-  [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://flashframe-production.up.railway.app)
+  [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://flashframe.edycu.dev)
   [![Demo Video](https://img.shields.io/badge/🎬_Demo-Video-ef4444?style=for-the-badge)](https://youtu.be/rPxGyYpVfAE)
-  [![Judge Page](https://img.shields.io/badge/⚖️_Judge-Page-8b5cf6?style=for-the-badge)](https://flashframe-production.up.railway.app/judge)
+  [![Judge Page](https://img.shields.io/badge/⚖️_Judge-Page-8b5cf6?style=for-the-badge)](https://flashframe.edycu.dev/judge)
   [![Devpost](https://img.shields.io/badge/Devpost-Agentic_Cinema-003E54?style=for-the-badge)](https://agentic-cinema.devpost.com/)
 
   <br/>
@@ -20,6 +20,7 @@
   ![Gemini](https://img.shields.io/badge/Gemini-3.6--flash-orange?style=flat&logo=googlegemini&logoColor=white)
   ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
   [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)](LICENSE)
+  [![Release](https://img.shields.io/github/v/release/edycutjong/flashframe?sort=semver&style=flat)](https://github.com/edycutjong/flashframe/releases/latest)
   [![CI](https://github.com/edycutjong/flashframe/actions/workflows/ci.yml/badge.svg)](https://github.com/edycutjong/flashframe/actions/workflows/ci.yml)
 
 </div>
@@ -188,7 +189,7 @@ The hosted zero-config path needs none of this — it is browser-only. For the l
 
 ### Installation
 
-**Zero-config path:** Open the live URL (https://flashframe-production.up.railway.app), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.
+**Zero-config path:** Open the live URL (https://flashframe.edycu.dev), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.
 
 **Local path:** 
 ```bash

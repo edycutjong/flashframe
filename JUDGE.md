@@ -4,7 +4,7 @@
 
 ## The 30-Second Path
 
-1. Open https://flashframe-production.up.railway.app
+1. Open https://flashframe.edycu.dev
 2. Click one of the three bundled seed clips (`control_clean`, `hard_fail_strobe`, `borderline_screen_area`) — no upload, no keys, no arguments, no flags
 3. Watch the scan and read the issued certificate
 
@@ -47,6 +47,7 @@ The product itself requires live ClickHouse + Gemini credentials. The test suite
 
 ## Links
 
-- **Live App:** https://flashframe-production.up.railway.app
+- **Live App:** https://flashframe.edycu.dev
+- **Note:** The app is also reachable at https://flashframe-production.up.railway.app
 - **Repo:** https://github.com/edycutjong/flashframe
 - **Demo Video:** https://youtu.be/rPxGyYpVfAE
