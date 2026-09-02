@@ -36,3 +36,7 @@ stats_*.txt
 filter.txt
 frame_*.jpg
 certificate.json
+.coverage
+app.log
+contrast*.py
+report.json
