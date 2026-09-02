@@ -19,6 +19,15 @@ from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from dotenv import load_dotenv
 import sys
 from src.flashframe.cli import run_pipeline
+import importlib.metadata
+
+def _resolve_version():
+    try:
+        return importlib.metadata.version("flashframe")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+__version__ = _resolve_version()
 
 scan_status_dict = {}
 clickhouse_client = None
@@ -127,6 +136,14 @@ async def read_index(request: Request):
 @app.get("/judge", response_class=HTMLResponse)
 async def read_judge(request: Request):
     return templates.TemplateResponse(request, "judge.html")
+
+@app.get("/healthz")
+async def healthz():
+    return {
+        "status": "ok",
+        "commit": os.environ.get("APP_COMMIT_SHA", "unknown"),
+        "version": __version__
+    }
 
 async def run_actual_pipeline(scan_id, video_path):
     try:

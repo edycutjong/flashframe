@@ -79,6 +79,23 @@ def test_read_judge(client):
     assert b"Upload a locked cut, get a broadcast photosensitivity safety certificate" in response.content
     assert b"138,240" in response.content
 
+def test_healthz_reports_commit_sha_for_deployment_drift_detection(client, monkeypatch):
+    monkeypatch.setenv("APP_COMMIT_SHA", "abcdef1234567890abcdef1234567890abcdef12")
+    res = client.get("/healthz")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert data["commit"] == "abcdef1234567890abcdef1234567890abcdef12"
+    assert isinstance(data["version"], str)
+    assert len(data["version"]) > 0
+
+def test_healthz_reports_unknown_commit_when_env_var_missing(client, monkeypatch):
+    monkeypatch.delenv("APP_COMMIT_SHA", raising=False)
+    res = client.get("/healthz")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["commit"] == "unknown"
+
 def test_lifespan_missing_creds(monkeypatch):
     monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
     with pytest.raises(RuntimeError, match="Missing required ClickHouse credentials"):
@@ -508,3 +525,10 @@ def test_schema_preflight_failure_caught():
     
     assert web.SCHEMA_PREFLIGHT["status"] == "error"
     assert "boom" in web.SCHEMA_PREFLIGHT["error"]
+
+def test_version_falls_back_to_unknown_when_package_not_installed(monkeypatch):
+    import importlib.metadata
+    def mock_version(*args, **kwargs):
+        raise importlib.metadata.PackageNotFoundError()
+    monkeypatch.setattr(importlib.metadata, "version", mock_version)
+    assert web._resolve_version() == "unknown"
