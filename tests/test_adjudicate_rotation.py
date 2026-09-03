@@ -162,3 +162,131 @@ def test_rotation_advances_on_429_status_code_attribute(mock_subprocess, mock_os
     verdict = run_adjudicate("dummy.mp4", 0, 10)
     assert verdict.passed is True
     assert mock_genai.call_count == 2
+
+def test_rotation_advances_on_503_string(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    client1 = MagicMock()
+    exc503 = Exception("Error 503 occurred")
+    client1.models.generate_content.side_effect = exc503
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
+    
+    captured = capsys.readouterr()
+    assert "service unavailable on key 1 of 2, trying next" in captured.out
+
+def test_rotation_advances_on_unavailable_string(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    client1 = MagicMock()
+    exc_unavail = Exception("Service is UNAVAILABLE")
+    client1.models.generate_content.side_effect = exc_unavail
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
+    
+    captured = capsys.readouterr()
+    assert "service unavailable on key 1 of 2, trying next" in captured.out
+
+def test_rotation_advances_on_503_code_attribute(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    class DummyCodeException(Exception):
+        def __init__(self):
+            self.code = 503
+        def __str__(self):
+            return "Some generic API error without numbers"
+            
+    client1 = MagicMock()
+    client1.models.generate_content.side_effect = DummyCodeException()
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
+    
+    captured = capsys.readouterr()
+    assert "service unavailable on key 1 of 2, trying next" in captured.out
+
+def test_rotation_advances_on_503_status_code_attribute(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    class DummyStatusCodeException(Exception):
+        def __init__(self):
+            self.status_code = 503
+        def __str__(self):
+            return "Some generic API error without numbers"
+            
+    client1 = MagicMock()
+    client1.models.generate_content.side_effect = DummyStatusCodeException()
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
+    
+    captured = capsys.readouterr()
+    assert "service unavailable on key 1 of 2, trying next" in captured.out
+
+def test_non_retryable_error_does_not_rotate(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    client1 = MagicMock()
+    exc_400 = Exception("400 Bad Request")
+    client1.models.generate_content.side_effect = exc_400
+    mock_genai.return_value = client1
+    
+    with pytest.raises(Exception, match="400 Bad Request"):
+        run_adjudicate("dummy.mp4", 0, 10)
+        
+    assert mock_genai.call_count == 1
+    
+    captured = capsys.readouterr()
+    assert "quota exhausted" not in captured.out
+    assert "service unavailable" not in captured.out
+
+def test_all_keys_exhausted_on_503_raises(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    client = MagicMock()
+    exc503 = Exception("503 UNAVAILABLE")
+    client.models.generate_content.side_effect = exc503
+    mock_genai.return_value = client
+    
+    with pytest.raises(Exception, match="503 UNAVAILABLE"):
+        run_adjudicate("dummy.mp4", 0, 10)
+        
+    assert mock_genai.call_count == 2
+    
+    captured = capsys.readouterr()
+    assert "service unavailable on key 1 of 2, trying next" in captured.out
+    assert "service unavailable on key 2 of 2" not in captured.out

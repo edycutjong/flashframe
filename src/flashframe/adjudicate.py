@@ -74,7 +74,9 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
             return Verdict.model_validate_json(resp.text)
         except Exception as e:
             is_quota_error = False
+            is_unavailable_error = False
             err_str = str(e)
+            
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                 is_quota_error = True
             elif hasattr(e, 'code') and getattr(e, 'code') == 429:
@@ -82,11 +84,21 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
             elif hasattr(e, 'status_code') and getattr(e, 'status_code') == 429:
                 is_quota_error = True
 
-            if not is_quota_error:
+            if "503" in err_str or "UNAVAILABLE" in err_str:
+                is_unavailable_error = True
+            elif hasattr(e, 'code') and getattr(e, 'code') == 503:
+                is_unavailable_error = True
+            elif hasattr(e, 'status_code') and getattr(e, 'status_code') == 503:
+                is_unavailable_error = True
+
+            is_retryable_error = is_quota_error or is_unavailable_error
+
+            if not is_retryable_error:
                 raise
             
             last_exc = e
             if i < len(candidate_keys) - 1:
-                print(f"quota exhausted on key {i+1} of {len(candidate_keys)}, trying next")
+                reason = "quota exhausted" if is_quota_error else "service unavailable"
+                print(f"{reason} on key {i+1} of {len(candidate_keys)}, trying next")
 
     raise last_exc
