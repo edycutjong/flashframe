@@ -20,7 +20,7 @@ from google import genai
 
 @click.group()
 def cli():
-    pass
+    pass  # pragma: no cover
 
 @cli.command()
 @click.option('--feature', is_flag=True)
@@ -125,20 +125,27 @@ async def run_pipeline(video_path, scan_id=None):
     tools = await clickhouse.get_tools()
     run_query_tool = next(t for t in tools if t.name == "run_query")
     
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key_env_keys = os.environ.get("GEMINI_API_KEYS")
+    api_key_single = os.environ.get("GEMINI_API_KEY")
     model_name = os.environ.get("GEMINI_MODEL", 'gemini-3.6-flash')
     
-    if not api_key:
+    candidate_keys = []
+    if api_key_env_keys:
+        candidate_keys = [k.strip() for k in api_key_env_keys.split(',') if k.strip()]
+    elif api_key_single:
+        candidate_keys = [api_key_single]
+    else:
         cred_path = os.path.expanduser('~/.config/gemini/credentials.json')
         if os.path.exists(cred_path):
             with open(cred_path, 'r') as f:
                 creds = json.load(f)
-                api_key = creds['keys'][3]['key']
+                candidate_keys = [creds['keys'][3]['key']]
                 model_name = creds.get('model', model_name)
-        else:
-            raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
+                
+    if not candidate_keys:
+        raise RuntimeError("GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found")
             
-    os.environ["GEMINI_API_KEY"] = api_key
+    os.environ["GEMINI_API_KEY"] = candidate_keys[0]
     
     print(f"Extracting {video_path} at 10fps...")
     scan_id = run_extraction(video_path, fps_override=10, scan_id=scan_id)
@@ -216,10 +223,19 @@ async def run_pipeline(video_path, scan_id=None):
                     raise
         return {"error": "Exceeded maximum retries for Gemini API"}
         
+    _cert_result = None
+
     async def certify(scan_id: str, passed: bool, frame_start: int, frame_end: int, cause: str, remediation: str, gemini_estimated_rate: float = 0.0) -> dict:
+        nonlocal _cert_result
+        if _cert_result is not None:
+            print("certify() already completed in a previous attempt, skipping duplicate insert.")
+            return _cert_result
+
         print(f"\n>>> certify <<<\n")
         from .certify import write_certificate
         cert = await write_certificate(run_query_tool, scan_id, passed, frame_start, frame_end, current_measured_rate, cause, remediation, gemini_estimated_rate)
+        
+        _cert_result = cert
         
         print("\n================ ADJUDICATION REPORT ================")
         print(f"MEASURED (ClickHouse)          {current_measured_rate:.2f} flashes/sec")
@@ -231,30 +247,60 @@ async def run_pipeline(video_path, scan_id=None):
         print("Final Certificate Generated.")
         return cert
 
-    agent = LlmAgent(
-        model=model_name,
-        name="flashframe_adjudicator",
-        instruction="""You are the Flashframe Adjudicator orchestrating a photosensitive epilepsy compliance pipeline.
-You are given a flagged span.
-If the current scan is from a 10fps extraction (which you should assume unless told otherwise), you MUST call resample_frames(frame_start, frame_end, target_fps=30) to get a more accurate reading.
-If the 30fps scan is still flagged or borderline, you MUST call resample_frames(frame_start, frame_end, target_fps=60). Max 2 resamples.
-Once you have the 60fps result (or 30fps if it definitively passes), you MUST call final_adjudicate(frame_start, frame_end) to get Gemini's blind visual verdict on the video.
-Finally, call certify(scan_id, passed, frame_start, frame_end, cause, remediation, gemini_estimated_rate) with Gemini's verdict to write the violation ledger and produce a certificate. Note that gemini_estimated_rate corresponds to the rate estimated by Gemini.
-""",
-        tools=[FunctionTool(resample_frames), FunctionTool(final_adjudicate), FunctionTool(certify)],
-    )
-    
     prompt = types.Content(role="user", parts=[types.Part.from_text(text=f"""Please adjudicate this flagged span.
 scan_id: {scan_id}
 frame_start: {frame_start}
 frame_end: {frame_end}
 """)])
 
-    session_service = InMemorySessionService()
-    runner = Runner(agent=agent, app_name="flashframe", session_service=session_service, auto_create_session=True)
+    agent_run_success = False
+    last_exception = None
     
-    async for event in runner.run_async(user_id="user1", session_id="session1", new_message=prompt):
-        if hasattr(event, "tool_call"):
-            pass
+    for i, candidate_key in enumerate(candidate_keys):
+        os.environ["GEMINI_API_KEY"] = candidate_key
+        
+        agent = LlmAgent(
+            model=model_name,
+            name="flashframe_adjudicator",
+            instruction="""You are the Flashframe Adjudicator orchestrating a photosensitive epilepsy compliance pipeline.
+You are given a flagged span.
+If the current scan is from a 10fps extraction (which you should assume unless told otherwise), you MUST call resample_frames(frame_start, frame_end, target_fps=30) to get a more accurate reading.
+If the 30fps scan is still flagged or borderline, you MUST call resample_frames(frame_start, frame_end, target_fps=60). Max 2 resamples.
+Once you have the 60fps result (or 30fps if it definitively passes), you MUST call final_adjudicate(frame_start, frame_end) to get Gemini's blind visual verdict on the video.
+Finally, call certify(scan_id, passed, frame_start, frame_end, cause, remediation, gemini_estimated_rate) with Gemini's verdict to write the violation ledger and produce a certificate. Note that gemini_estimated_rate corresponds to the rate estimated by Gemini.
+""",
+            tools=[FunctionTool(resample_frames), FunctionTool(final_adjudicate), FunctionTool(certify)],
+        )
 
-if __name__ == "__main__": cli()
+        session_service = InMemorySessionService()
+        runner = Runner(agent=agent, app_name="flashframe", session_service=session_service, auto_create_session=True)
+        
+        try:
+            async for event in runner.run_async(user_id="user1", session_id="session1", new_message=prompt):
+                if hasattr(event, "tool_call"):
+                    pass
+            agent_run_success = True
+            break
+        except Exception as e:
+            last_exception = e
+            is_retryable = False
+            
+            error_text = str(e).lower()
+            code = getattr(e, 'code', None)
+            status_code = getattr(e, 'status_code', None)
+            
+            if code in [429, 503] or status_code in [429, 503]:
+                is_retryable = True
+            elif any(x in error_text for x in ["429", "503", "resource_exhausted", "unavailable"]):
+                is_retryable = True
+                
+            if is_retryable:
+                print(f"agent run: service unavailable on key {i+1} of {len(candidate_keys)}, retrying on next key")
+                continue
+            else:
+                raise
+                
+    if not agent_run_success and last_exception:
+        raise last_exception
+
+if __name__ == "__main__": cli()  # pragma: no cover
