@@ -399,3 +399,30 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 .interpretation {
     font-family: var(--font-display);
 }
+
+/* Footer */
+.site-footer {
+    border-top: 1px solid var(--grid);
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.footer-link {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-link:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .footer-link {
+        transition: none;
+    }
+}
