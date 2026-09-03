@@ -205,7 +205,7 @@ The hosted zero-config path needs none of this — it is browser-only. For the l
 
 ### Installation
 
-**Zero-config path:** Open the live URL (https://flashframe.edycu.dev), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. No `MOCK=`, `OFFLINE=` or `--dry-run` anywhere.
+**Zero-config path:** Open the live URL (https://flashframe.edycu.dev), click one of the three bundled seed clips, and watch the scan. There is no upload, no arguments, and no flags to configure. There is no mock mode, no offline mode and no dry-run switch anywhere in the project.
 
 **Local path:** 
 ```bash

@@ -100,17 +100,16 @@ python3 bench.py
 
 ### What the runs actually cost
 
-RUNTIME MODEL SPEND
-- Gemini adjudication runs on the Gemini API free tier. Runtime Gemini API charges for this project are $0.00.
-- That is the same constraint already disclosed under Known Limitations — 5 requests/minute and 20/day per model. It is a real ceiling a judge reproducing the demo will hit, and it is the reason the figure is zero.
+**Runtime model spend.** Gemini adjudication runs on the Gemini API free tier, so runtime Gemini API charges for this project are **$0.00**. That is the same ceiling disclosed under Known Limitations — 5 requests/minute and 20/day per model — and it is the reason the figure is zero rather than merely small.
 
-CLICKHOUSE CLOUD CONSUMPTION — measured from system.query_log and system.parts on 2026-09-03
-- 126,386 queries executed between 2026-08-30 00:04:21 and 2026-09-03 05:22:33
-- 3.34 billion rows read, 60.79 GiB read
-- 2,663.9 seconds of cumulative query execution time (about 44 minutes)
-- Stored, active parts across all six tables: frames 138,240 rows / 339.26 KiB; frames_control 138,240 rows / 339.23 KiB; frame_metrics 313,360 rows / 286.24 KiB; scan_metadata 132 rows; violation_ledger 16 rows; threshold_reference 3 rows
+**ClickHouse Cloud consumption**, measured from `system.query_log` and `system.parts` on 2026-09-03:
 
-As noted earlier, the service is a single replica at 8 GiB / 2 vCPU in ap-southeast-1. ClickHouse Cloud bills on provisioned replica-hours rather than on query time, so the consumption above is what the project actually did to the service, not a derived dollar amount.
+* **Queries:** 126,386, between 2026-08-30 00:04:21 and 2026-09-03 05:22:33
+* **Read:** 3.34 billion rows / 60.79 GiB
+* **Cumulative query execution:** 2,663.9 s, about 44 minutes
+* **Stored (active parts):** `frames` 138,240 rows / 339.26 KiB · `frames_control` 138,240 rows / 339.23 KiB · `frame_metrics` 313,360 rows / 286.24 KiB · `scan_metadata` 132 rows · `violation_ledger` 16 rows · `threshold_reference` 3 rows
+
+The service is the single replica at 8 GiB / 2 vCPU in ap-southeast-1 named above. ClickHouse Cloud bills on provisioned replica-hours rather than on query time, so the consumption here is what the project actually did to the service, not a derived dollar amount.
 
 ## METHODS Note: Measurement Accuracy
 
