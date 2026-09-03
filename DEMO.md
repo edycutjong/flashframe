@@ -98,6 +98,20 @@ python3 generator.py
 python3 bench.py
 ```
 
+### What the runs actually cost
+
+RUNTIME MODEL SPEND
+- Gemini adjudication runs on the Gemini API free tier. Runtime Gemini API charges for this project are $0.00.
+- That is the same constraint already disclosed under Known Limitations — 5 requests/minute and 20/day per model. It is a real ceiling a judge reproducing the demo will hit, and it is the reason the figure is zero.
+
+CLICKHOUSE CLOUD CONSUMPTION — measured from system.query_log and system.parts on 2026-09-03
+- 126,386 queries executed between 2026-08-30 00:04:21 and 2026-09-03 05:22:33
+- 3.34 billion rows read, 60.79 GiB read
+- 2,663.9 seconds of cumulative query execution time (about 44 minutes)
+- Stored, active parts across all six tables: frames 138,240 rows / 339.26 KiB; frames_control 138,240 rows / 339.23 KiB; frame_metrics 313,360 rows / 286.24 KiB; scan_metadata 132 rows; violation_ledger 16 rows; threshold_reference 3 rows
+
+As noted earlier, the service is a single replica at 8 GiB / 2 vCPU in ap-southeast-1. ClickHouse Cloud bills on provisioned replica-hours rather than on query time, so the consumption above is what the project actually did to the service, not a derived dollar amount.
+
 ## METHODS Note: Measurement Accuracy
 
 The original SQL rate calculation omitted +1 frame from the span duration (treating duration as `max - min` rather than `max - min + 1`). Because the pipeline normalizes frame indices to the source video's 25fps space, `max - min + 1` correctly yields the span's duration in 25ths of a second. Applying this off-by-one correction removed the large positive bias observed initially. 
