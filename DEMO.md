@@ -75,10 +75,16 @@ To evaluate the generation and analysis bottlenecks on extended durations, we ge
 
 ### Reproduction — 2026-09-03
 
-- The benchmark was re-run unchanged on 2026-09-03 against the same clip, manifest and ClickHouse Cloud instance, N=5.
-- The three result lines in seconds: INGEST p50 1.314 / p95 1.631; DETECT p50 0.415 / p95 0.539; TOTAL p50 1.770 / p95 2.016.
-- The strobe was detected at frame 57896 on 5 of 5 iterations, matching manifest.json, with zero mismatches.
-- Plainly: this run is FASTER than the published Run B figure. The published 0.550 s p50 is deliberately KEPT as the headline because it is the conservative number. Run-to-run variance on shared cloud infrastructure is expected, and showing both runs rather than only the fastest is the point.
+The benchmark was re-run unchanged on 2026-09-03 — same clip, same manifest, same ClickHouse Cloud instance, N=5 — to check whether the published figure still held.
+
+**Run C (2026-09-03, warm):**
+* **INGEST (bulk INSERT):** p50 = 1.314 / p95 = 1.631
+* **DETECT (windowed detection SQL alone, data already resident):** p50 = 0.415 / p95 = 0.539
+* **TOTAL:** p50 = 1.770 / p95 = 2.016
+
+The strobe was detected at frame 57896 on 5 of 5 iterations, matching `manifest.json`, with zero mismatches.
+
+Run C is faster than Run B. The headline figure stays at Run B's 0.550 s p50 because it is the conservative one — run-to-run variance on shared cloud infrastructure is expected, and reporting the slower run rather than the fastest is the honest choice.
 
 ### Accuracy
 * **Expected manifest offset:** 57896
