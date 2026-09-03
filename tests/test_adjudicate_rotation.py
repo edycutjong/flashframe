@@ -111,3 +111,54 @@ def test_gemini_api_keys_unset_behaves_like_single_key(mock_subprocess, mock_os_
 def test_no_keys_raises_runtime_error(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai):
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY environment variable is missing and fallback ~/.config/gemini/credentials.json not found"):
         run_adjudicate("dummy.mp4", 0, 10)
+
+def test_empty_keys_str_raises_runtime_error(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai):
+    os.environ["GEMINI_API_KEYS"] = " ,  , "
+    with pytest.raises(RuntimeError, match="No API keys available"):
+        run_adjudicate("dummy.mp4", 0, 10)
+
+def test_rotation_advances_on_429_code_attribute(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    class DummyCodeException(Exception):
+        def __init__(self):
+            self.code = 429
+        def __str__(self):
+            return "Some generic API error without numbers"
+            
+    client1 = MagicMock()
+    client1.models.generate_content.side_effect = DummyCodeException()
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
+    
+def test_rotation_advances_on_429_status_code_attribute(mock_subprocess, mock_os_path_exists, mock_open_file, mock_genai, capsys):
+    os.environ["GEMINI_API_KEYS"] = "key1, key2"
+    
+    class DummyStatusCodeException(Exception):
+        def __init__(self):
+            self.status_code = 429
+        def __str__(self):
+            return "Some generic API error without numbers"
+            
+    client1 = MagicMock()
+    client1.models.generate_content.side_effect = DummyStatusCodeException()
+    
+    client2 = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = '{"passed": true, "frame_start": 0, "frame_end": 10, "measured_value": 0.0, "threshold_value": 1.0, "cause": "none", "remediation": "none"}'
+    client2.models.generate_content.return_value = mock_resp
+    
+    mock_genai.side_effect = [client1, client2]
+    
+    verdict = run_adjudicate("dummy.mp4", 0, 10)
+    assert verdict.passed is True
+    assert mock_genai.call_count == 2
