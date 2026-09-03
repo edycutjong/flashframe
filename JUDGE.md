@@ -41,7 +41,7 @@ The product itself requires live ClickHouse + Gemini credentials. The test suite
 - Gemini free tier 5 req/min, 20/day; the resample loop is multi-call so a demo run may need spacing; the app catches 429 and says so.
 - ClickHouse Cloud cold start ~25 s.
 - INGEST is round-trip bound, likely dominated by MCP/HTTP rather than ClickHouse — which is why the stages are reported separately rather than as one blended TOTAL.
-- The public demo video title quotes an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
+- The public demo video's narration and on-screen benchmark card at 2:25 quote an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
 
 *Disclaimer: Flashframe is a screening-grade pre-check against published ITU-R BT.1702 / Ofcom 2.12 criteria. It is **not** a certified Harding test and does not imply a lab pass or legal clearance.*
 

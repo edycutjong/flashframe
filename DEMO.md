@@ -14,7 +14,7 @@ The 10 fps first pass measured the strobe at 5.0 flashes/sec; after the agent's 
 
 ## 3. Known Limitations
 
-- The public demo video title quotes an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
+- The public demo video's narration and on-screen benchmark card at 2:25 quote an earlier 106 ms DETECT p50 which later measurement did not reproduce; the figures in this document are the current measured ones.
 - Gemini's stated figures are visual estimates, not measurements. ClickHouse supplies the precise numbers; Gemini supplies the judgement about what is on screen.
 - The Gemini API free tier caps at 5 requests/minute and 20/day per model, so a full three-clip run may need to be spaced out. State this plainly; it is a real constraint a judge reproducing the demo will hit.
 - Screen area is a 3x3 tiled proxy, not true per-pixel measurement.
@@ -72,6 +72,13 @@ To evaluate the generation and analysis bottlenecks on extended durations, we ge
 * **TOTAL:** p50 = 2.910 / p95 = 16.521
 
 *(Note: INGEST is round-trip bound and likely dominated by MCP/HTTP rather than ClickHouse. A blended TOTAL would credit ClickHouse with transport latency).*
+
+### Reproduction — 2026-09-03
+
+- The benchmark was re-run unchanged on 2026-09-03 against the same clip, manifest and ClickHouse Cloud instance, N=5.
+- The three result lines in seconds: INGEST p50 1.314 / p95 1.631; DETECT p50 0.415 / p95 0.539; TOTAL p50 1.770 / p95 2.016.
+- The strobe was detected at frame 57896 on 5 of 5 iterations, matching manifest.json, with zero mismatches.
+- Plainly: this run is FASTER than the published Run B figure. The published 0.550 s p50 is deliberately KEPT as the headline because it is the conservative number. Run-to-run variance on shared cloud infrastructure is expected, and showing both runs rather than only the fastest is the point.
 
 ### Accuracy
 * **Expected manifest offset:** 57896
