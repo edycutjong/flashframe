@@ -29,10 +29,10 @@ def _resolve_version():
 
 __version__ = _resolve_version()
 
-scan_status_dict = {}
+scan_status_dict = {}  # type: ignore[var-annotated] # dict stores dynamic scan status fields
 clickhouse_client = None
 
-SCHEMA_PREFLIGHT = {}
+SCHEMA_PREFLIGHT = {}  # type: ignore[var-annotated] # untyped schema preflight config
 
 async def run_schema_preflight(tools, database):
     global SCHEMA_PREFLIGHT
@@ -207,7 +207,7 @@ async def scan_status(scan_id: str):
 @app.get("/report/{scan_id}", response_class=HTMLResponse)
 async def report(request: Request, scan_id: str):
     global clickhouse_client
-    tools = await clickhouse_client.get_tools()
+    tools = await clickhouse_client.get_tools()  # type: ignore[union-attr] # client initialized on startup
     run_query_tool = next(t for t in tools if t.name == "run_query")
     
     cert_query = f"SELECT * FROM violation_ledger WHERE scan_id = '{scan_id}' ORDER BY certified_at DESC LIMIT 1"
@@ -389,7 +389,7 @@ async def report(request: Request, scan_id: str):
         binned = df.groupby('bin').agg(ymax=('yavg', 'max'), ymin=('yavg', 'min')).reset_index()
         
         points_up = []
-        points_down = []
+        points_down = []  # type: ignore[var-annotated] # stores untyped coordinate tuples
         
         for _, row in binned.iterrows():
             x = row['bin']

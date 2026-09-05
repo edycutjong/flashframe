@@ -26,8 +26,11 @@ jobs:
         with:
           python-version: '3.13'
           
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install dependencies
+        run: pip install ruff mypy pydantic google-genai
         
       - name: Run ruff check
         run: ruff check .
+        
+      - name: Run mypy
+        run: mypy
