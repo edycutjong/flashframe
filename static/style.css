@@ -186,12 +186,7 @@ button:focus, a:focus, input:focus, .violation-band:focus {
         width: 100%;
     }
     
-    .sweep-segment {
-        animation: none;
-        width: 100%;
-        background: var(--pass);
-    }
-    
+
     .reduced-motion-disabled {
         opacity: 0.5;
         pointer-events: none;
@@ -382,6 +377,14 @@ button:focus, a:focus, input:focus, .violation-band:focus {
     }
     to {
         transform: translateX(350%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sweep-segment {
+        animation: none;
+        width: 100%;
+        background: var(--pass);
     }
 }
 
