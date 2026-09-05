@@ -226,3 +226,60 @@ async def test_rotation_does_not_double_certify(mock_mcp, mock_pipeline_deps, mo
     
     captured = capsys.readouterr()
     assert "certify() already completed in a previous attempt, skipping duplicate insert." in captured.out
+
+@pytest.mark.asyncio
+async def test_on_stage_callbacks_called(mock_mcp, mock_pipeline_deps, mock_runner, mock_os_path_exists):
+    os.environ["GEMINI_API_KEY"] = "single_key"
+    
+    runner = MagicMock()
+    
+    async def passing_run_async(*args, **kwargs):
+        agent = mock_runner.call_args.kwargs['agent']
+        adjudicate_tool = next(t for t in agent.tools if t.name == 'final_adjudicate')
+        certify_tool = next(t for t in agent.tools if t.name == 'certify')
+        
+        with patch('flashframe.adjudicate.run_adjudicate') as mock_adj, patch('flashframe.certify.write_certificate', new_callable=AsyncMock) as mock_cert:
+            mock_adj_result = MagicMock()
+            mock_adj_result.passed = True
+            mock_adj_result.cause = "none"
+            mock_adj_result.remediation = "none"
+            mock_adj_result.measured_value = 0.0
+            mock_adj_result.frame_start = 0
+            mock_adj_result.frame_end = 10
+            mock_adj.return_value = mock_adj_result
+            
+            mock_cert.return_value = {"success": True}
+            
+            adjudicate_tool.func(0, 10)
+            await certify_tool.func("scan_123", True, 0, 10, "passed", "none", 0.0)
+            
+        class DummyEvent:
+            tool_call = True
+        yield DummyEvent()
+        
+    runner.run_async = passing_run_async
+    mock_runner.return_value = runner
+    
+    called_stages = []
+    def on_stage(stage):
+        called_stages.append(stage)
+        
+    await run_pipeline("dummy.mp4", on_stage=on_stage)
+    
+    assert called_stages == ["Extract", "Ingest", "Detect", "Adjudicate", "Certify"]
+
+@pytest.mark.asyncio
+async def test_on_stage_early_return(mock_mcp, mock_runner, mock_os_path_exists):
+    os.environ["GEMINI_API_KEY"] = "single_key"
+    
+    called_stages = []
+    def on_stage(stage):
+        called_stages.append(stage)
+        
+    with patch('flashframe.cli.run_extraction', return_value="scan_123"), \
+         patch('flashframe.cli.setup_db_and_ingest', new_callable=AsyncMock), \
+         patch('flashframe.cli.detect_violations', new_callable=AsyncMock, return_value='[]'):
+         
+        await run_pipeline("dummy.mp4", on_stage=on_stage)
+        
+    assert called_stages == ["Extract", "Ingest", "Detect"]

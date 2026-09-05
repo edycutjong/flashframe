@@ -147,7 +147,14 @@ async def healthz():
 
 async def run_actual_pipeline(scan_id, video_path):
     try:
-        await run_pipeline(video_path, scan_id=scan_id)
+        def on_stage_callback(stage_name):
+            if scan_id in scan_status_dict:
+                for s in scan_status_dict[scan_id]["stages"]:
+                    if s["name"] == stage_name:
+                        s["status"] = "done"
+                        break
+
+        await run_pipeline(video_path, scan_id=scan_id, on_stage=on_stage_callback)
         scan_status_dict[scan_id]["status"] = "complete"
         for s in scan_status_dict[scan_id]["stages"]:
             s["status"] = "done"

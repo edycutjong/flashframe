@@ -93,7 +93,7 @@ rm seg_a.mp4 seg_b.mp4 seg_c.mp4 segments.txt
 def pipeline(video_path):
     asyncio.run(run_pipeline(video_path))
 
-async def run_pipeline(video_path, scan_id=None):
+async def run_pipeline(video_path, scan_id=None, on_stage=None):
     load_dotenv(os.path.expanduser('~/.config/flashframe/clickhouse.env'))
     env = os.environ.copy()
     
@@ -149,12 +149,18 @@ async def run_pipeline(video_path, scan_id=None):
     
     print(f"Extracting {video_path} at 10fps...")
     scan_id = run_extraction(video_path, fps_override=10, scan_id=scan_id)
+    if on_stage:
+        on_stage("Extract")
     
     print(f"Ingesting {scan_id}...")
     await setup_db_and_ingest(run_query_tool, scan_id, video_path, 25.0, 10.0)
+    if on_stage:
+        on_stage("Ingest")
     
     print("Detecting violations...")
     detect_res = await detect_violations(run_query_tool, scan_id, fps=10)
+    if on_stage:
+        on_stage("Detect")
     
     spans = []
     try:
@@ -213,6 +219,8 @@ async def run_pipeline(video_path, scan_id=None):
         for attempt in range(5):
             try:
                 v = run_adjudicate(video_path, frame_start, frame_end, model=model_name)
+                if on_stage:
+                    on_stage("Adjudicate")
                 return {"passed": v.passed, "cause": v.cause, "remediation": v.remediation, "gemini_estimated_rate": v.measured_value, "frame_start": v.frame_start, "frame_end": v.frame_end}
             except APIError as e:
                 if e.code in [429, 503]:
@@ -234,6 +242,8 @@ async def run_pipeline(video_path, scan_id=None):
         print(f"\n>>> certify <<<\n")
         from .certify import write_certificate
         cert = await write_certificate(run_query_tool, scan_id, passed, frame_start, frame_end, current_measured_rate, cause, remediation, gemini_estimated_rate)
+        if on_stage:
+            on_stage("Certify")
         
         _cert_result = cert
         
