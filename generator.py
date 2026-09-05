@@ -1,7 +1,6 @@
 import json
 import random
 import subprocess
-import os
 import sys
 
 def generate():

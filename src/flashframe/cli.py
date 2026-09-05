@@ -16,7 +16,6 @@ from google.adk.tools import FunctionTool
 from google.adk import Runner
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
-from google import genai
 
 @click.group()
 def cli():
@@ -171,7 +170,7 @@ async def run_pipeline(video_path, scan_id=None, on_stage=None):
             spans = [data]
         elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
             spans = [{'frame_start': row[0], 'frame_end': row[1], 'flashes': row[2], 'peak_red': row[3], 'tile': row[4]} for row in data]
-    except Exception as e:
+    except Exception:
         pass
         
     if not spans:
@@ -239,7 +238,7 @@ async def run_pipeline(video_path, scan_id=None, on_stage=None):
             print("certify() already completed in a previous attempt, skipping duplicate insert.")
             return _cert_result
 
-        print(f"\n>>> certify <<<\n")
+        print("\n>>> certify <<<\n")
         from .certify import write_certificate
         cert = await write_certificate(run_query_tool, scan_id, passed, frame_start, frame_end, current_measured_rate, cause, remediation, gemini_estimated_rate)
         if on_stage:
@@ -249,7 +248,7 @@ async def run_pipeline(video_path, scan_id=None, on_stage=None):
         
         print("\n================ ADJUDICATION REPORT ================")
         print(f"MEASURED (ClickHouse)          {current_measured_rate:.2f} flashes/sec")
-        print(f"THRESHOLD (Ofcom 2.12)         3.00 flashes/sec")
+        print("THRESHOLD (Ofcom 2.12)         3.00 flashes/sec")
         status = "PASS" if passed else "FAIL"
         print(f"ADJUDICATED (Gemini)           {status} — {cause}")
         print("=====================================================\n")
@@ -313,4 +312,5 @@ Finally, call certify(scan_id, passed, frame_start, frame_end, cause, remediatio
     if not agent_run_success and last_exception:
         raise last_exception
 
-if __name__ == "__main__": cli()  # pragma: no cover
+if __name__ == "__main__":
+    cli()  # pragma: no cover

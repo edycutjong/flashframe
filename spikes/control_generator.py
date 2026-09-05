@@ -1,5 +1,4 @@
 import subprocess
-import sys
 
 def generate_control():
     total_frames = 138240

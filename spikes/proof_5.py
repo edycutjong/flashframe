@@ -16,7 +16,8 @@ class Verdict(BaseModel):
 
 def proof_5():
     # 1. cut clip
-    if os.path.exists('span.mp4'): os.remove('span.mp4')
+    if os.path.exists('span.mp4'):
+        os.remove('span.mp4')
     subprocess.run(['ffmpeg', '-ss', '29.0', '-t', '2.0', '-i', 'test_clip.mp4', '-c:v', 'libx264', 'span.mp4', '-y'], check=True, capture_output=True)
     
     with open('span.mp4', 'rb') as f:

@@ -2,16 +2,13 @@ import pytest
 from fastapi.testclient import TestClient
 import os
 import json
-import base64
 from unittest.mock import MagicMock, AsyncMock
-import tempfile
 import asyncio
 import subprocess
-
-ORIGINAL_DIR = os.path.abspath(os.getcwd())
-
 import web
 from web import app, scan_status_dict
+
+ORIGINAL_DIR = os.path.abspath(os.getcwd())
 
 @pytest.fixture(autouse=True)
 def setup_env(monkeypatch, tmp_path):
@@ -182,14 +179,17 @@ class MockQueryTool:
         query = args["query"]
         print(f"MOCK QUERY: {query}")
         if "violation_ledger" in query:
-            if isinstance(self.cert_ret, Exception): raise self.cert_ret
+            if isinstance(self.cert_ret, Exception):
+                raise self.cert_ret
             print(f"MOCK RETURNING: {self.cert_ret}")
             return self._format(self.cert_ret, self.cert_type)
         if "frame_metrics" in query:
-            if isinstance(self.metrics_ret, Exception): raise self.metrics_ret
+            if isinstance(self.metrics_ret, Exception):
+                raise self.metrics_ret
             return self._format(self.metrics_ret, self.metrics_type)
         if "scan_metadata" in query:
-            if isinstance(self.meta_ret, Exception): raise self.meta_ret
+            if isinstance(self.meta_ret, Exception):
+                raise self.meta_ret
             return self._format(self.meta_ret, self.meta_type)
         return self._format({}, "std")
             
@@ -551,7 +551,6 @@ def test_run_actual_pipeline_on_stage_callback(client):
     web.run_pipeline.side_effect = mock_run_pipeline
     res = client.post("/upload", data={"seed_clip": "test_clip"}, follow_redirects=False)
     assert res.status_code == 303
-    scan_id = res.headers["location"].split("/")[-1]
     
     # Wait for the background task to complete if there is one, but we can't easily wait.
     # Actually FastAPI BackgroundTasks run immediately after the response in TestClient.

@@ -43,8 +43,8 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
 
     if not candidate_keys:
         raise RuntimeError("No API keys available")
-            
-    if os.path.exists('span.mp4'): os.remove('span.mp4')
+    if os.path.exists('span.mp4'):
+        os.remove('span.mp4')
     ss = frame_start / 25.0
     t = (frame_end - frame_start + 1) / 25.0
     subprocess.run(['ffmpeg', '-ss', str(ss), '-t', str(t), '-i', video_path, '-c:v', 'libx264', 'span.mp4', '-y'], check=True, stderr=subprocess.DEVNULL)
@@ -63,13 +63,20 @@ def run_adjudicate(video_path, frame_start, frame_end, model="gemini-3.6-flash",
                         inline_data=types.Blob(data=clip, mime_type="video/mp4"),
                         video_metadata=types.VideoMetadata(fps=24)
                     ),
-                    types.Part.from_text(text=f"The frame span from frames {frame_start} to {frame_end} in the source video corresponds to this short clip. The automated luminance scan flagged this span for potential photosensitivity hazards. Please analyze the visual content to determine if there are harmful flashes on screen, if they pass or fail the limit, and what on-screen content causes them.")
+                    types.Part.from_text(
+                        text=f"The frame span from frames {frame_start} to {frame_end} in the "
+                             "source video corresponds to this short clip. The automated luminance "
+                             "scan flagged this span for potential photosensitivity hazards. Please "
+                             "analyze the visual content to determine if there are harmful flashes on "
+                             "screen, if they pass or fail the limit, and what on-screen content "
+                             "causes them."
+                    )
                 ],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=Verdict,
                     temperature=0.0
-                ),
+                )
             )
             return Verdict.model_validate_json(resp.text)
         except Exception as e:

@@ -13,5 +13,11 @@ dependencies = [
     "python-dotenv",
 ]
 
+[tool.ruff]
+line-length = 320
+
+[tool.ruff.lint]
+select = ["E", "F"]
+
 [project.scripts]
 flashframe = "flashframe.cli:cli"

@@ -2,7 +2,7 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock, mock_open
 
-from flashframe.adjudicate import run_adjudicate, Verdict
+from flashframe.adjudicate import run_adjudicate
 
 @pytest.fixture(autouse=True)
 def isolate_env():

@@ -18,7 +18,7 @@ SELECT
     '{remediation.replace("'", "''")}',
     {gemini_estimated_rate}
 """
-    res = await run_query_tool.run_async(args={"query": write_ledger_sql}, tool_context=None)
+    await run_query_tool.run_async(args={"query": write_ledger_sql}, tool_context=None)
     
     # read it back
     read_back_query = f"SELECT * FROM violation_ledger WHERE scan_id = '{scan_id}' ORDER BY certified_at DESC LIMIT 1"

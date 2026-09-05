@@ -1,7 +1,6 @@
 import os
 import sys
 import asyncio
-import json
 from dotenv import load_dotenv
 from mcp.client.stdio import StdioServerParameters
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams

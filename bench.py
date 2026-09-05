@@ -105,7 +105,7 @@ def run_benchmarks():
         detected_offset = int(res.strip()) if res.strip() else -1
         print(f"  Detected: {detected_offset}, Expected: {expected_offset}")
         if detected_offset != expected_offset:
-            print(f"  WARNING: Mismatch!")
+            print("  WARNING: Mismatch!")
 
     def p50(data):
         return statistics.median(data)

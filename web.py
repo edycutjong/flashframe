@@ -345,7 +345,7 @@ async def report(request: Request, scan_id: str):
                         else:
                             break
                             
-            except Exception as e:
+            except Exception:
                 filmstrip_note = "Failed to extract frames for preview."
                 
     df = pd.DataFrame(rows)

@@ -30,7 +30,4 @@ jobs:
         run: pip install ruff
         
       - name: Run ruff check
-        # The narrow scope of rules is deliberate. We only check for critical errors
-        # like syntax errors, undefined names, and f-string mistakes (E9, F63, F7, F82).
-        # We do not use the default rule set as it would report many style errors and turn CI red.
-        run: ruff check --select E9,F63,F7,F82 src/ web.py tests/
+        run: ruff check .

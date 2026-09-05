@@ -1,8 +1,7 @@
 import pytest
 import os
 import json
-import asyncio
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from flashframe.cli import run_extraction
 from flashframe.ingest import setup_db_and_ingest
@@ -807,7 +806,7 @@ def test_extract_parser_flush_and_guards(monkeypatch, tmp_path):
     )
     fake2 = MockFfmpegRunner({0: stats_content_2})
     with patch("flashframe.extract.subprocess.run", fake2):
-        scan_id2 = run_extraction("vid.mp4", frame_start=None)
+        run_extraction("vid.mp4", frame_start=None)
         
     with open("frame_metrics.csv") as f:
         lines2 = f.read().splitlines()
@@ -841,7 +840,6 @@ def test_extract_parser_missing_files_and_defaults(monkeypatch, tmp_path):
     assert lines[1] == f"{scan_id},0,0.0,0,111.0,0.0,0.0,0.0,0.0"
     # tile 5: full
     assert lines[2] == f"{scan_id},0,0.0,5,222.0,255.0,0.0,128.0,0.5"
-from unittest.mock import MagicMock
 
 class FakeSubprocessRun:
     def __init__(self, expected_bytes=b"clipbytes"):
@@ -890,7 +888,7 @@ def test_adjudicate_explicit_key(monkeypatch, tmp_path):
     fake_client = FakeGenAIClient([valid_json])
     monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
     
-    from flashframe.adjudicate import run_adjudicate, Verdict
+    from flashframe.adjudicate import run_adjudicate
     res = run_adjudicate("vid.mp4", 10, 20, api_key="explicit_key")
     
     assert fake_client.keys_used == ["explicit_key"]
@@ -914,14 +912,15 @@ def test_adjudicate_single_key_and_model(monkeypatch, tmp_path):
     fake_client = FakeGenAIClient([valid_json], assert_func=assert_model)
     monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
     
-    from flashframe.adjudicate import run_adjudicate, Verdict
+    from flashframe.adjudicate import run_adjudicate
     res = run_adjudicate("vid.mp4", 10, 20)
     
     assert fake_client.keys_used == ["single_key"]
     assert res.passed is True
 
 def test_adjudicate_credentials_file(monkeypatch, tmp_path):
-    import json, os
+    import json
+    import os
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     
@@ -955,13 +954,14 @@ def test_adjudicate_credentials_file(monkeypatch, tmp_path):
     fake_client = FakeGenAIClient([valid_json], assert_func=assert_model)
     monkeypatch.setattr("flashframe.adjudicate.genai.Client", fake_client)
     
-    from flashframe.adjudicate import run_adjudicate, Verdict
-    res = run_adjudicate("vid.mp4", 10, 20)
+    from flashframe.adjudicate import run_adjudicate
+    run_adjudicate("vid.mp4", 10, 20)
     
     assert fake_client.keys_used == ["key1_target"]
 
 def test_adjudicate_no_credentials(monkeypatch, tmp_path):
-    import os, pytest
+    import os
+    import pytest
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     

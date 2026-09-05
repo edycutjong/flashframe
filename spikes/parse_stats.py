@@ -12,7 +12,8 @@ with open('thresholds.csv', 'w', newline='') as f:
     writer.writerow(['JP-NAB', 'flash_rate', 3.0, 20.0, 25.0, 'NAB Japan Guidelines'])
 
 def parse_file(tile, filename, rows):
-    if not os.path.exists(filename): return
+    if not os.path.exists(filename):
+        return
     with open(filename, 'r') as f:
         current_frame = {}
         for line in f:
@@ -36,10 +37,14 @@ def parse_file(tile, filename, rows):
                 current_frame = {'frame_idx': frame_idx, 'pts_time': pts_time}
             elif '=' in line:
                 key, val = line.split('=')
-                if key == 'lavfi.signalstats.YAVG': current_frame['yavg'] = val
-                elif key == 'lavfi.signalstats.YMAX': current_frame['ymax'] = val
-                elif key == 'lavfi.signalstats.YMIN': current_frame['ymin'] = val
-                elif key == 'lavfi.signalstats.SATAVG': current_frame['satavg'] = val
+                if key == 'lavfi.signalstats.YAVG':
+                    current_frame['yavg'] = val
+                elif key == 'lavfi.signalstats.YMAX':
+                    current_frame['ymax'] = val
+                elif key == 'lavfi.signalstats.YMIN':
+                    current_frame['ymin'] = val
+                elif key == 'lavfi.signalstats.SATAVG':
+                    current_frame['satavg'] = val
                 elif key == 'lavfi.signalstats.VAVG': 
                     # use V (red chroma) as a crude proxy for red ratio
                     current_frame['red_ratio'] = str(float(val) / 255.0)

@@ -48,7 +48,8 @@ def run_extraction(video_path, fps_override=None, frame_start=None, frame_end=No
     rows = []
     for tile in range(10):
         filename = f"stats_{tile}.txt"
-        if not os.path.exists(filename): continue
+        if not os.path.exists(filename):
+            continue
         with open(filename, 'r') as f:
             current_frame = {}
             for line in f:
@@ -81,10 +82,14 @@ def run_extraction(video_path, fps_override=None, frame_start=None, frame_end=No
                     current_frame = {'frame_idx': frame_idx, 'pts_time': pts_time}
                 elif '=' in line:
                     key, val = line.split('=')
-                    if key == 'lavfi.signalstats.YAVG': current_frame['yavg'] = val
-                    elif key == 'lavfi.signalstats.YMAX': current_frame['ymax'] = val
-                    elif key == 'lavfi.signalstats.YMIN': current_frame['ymin'] = val
-                    elif key == 'lavfi.signalstats.SATAVG': current_frame['satavg'] = val
+                    if key == 'lavfi.signalstats.YAVG':
+                        current_frame['yavg'] = val
+                    elif key == 'lavfi.signalstats.YMAX':
+                        current_frame['ymax'] = val
+                    elif key == 'lavfi.signalstats.YMIN':
+                        current_frame['ymin'] = val
+                    elif key == 'lavfi.signalstats.SATAVG':
+                        current_frame['satavg'] = val
                     elif key == 'lavfi.signalstats.VAVG': 
                         current_frame['red_ratio'] = str(float(val) / 255.0)
             
