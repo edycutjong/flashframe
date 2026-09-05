@@ -26,22 +26,68 @@
         <h1>Flashframe</h1>
     </header>
     <main class="container">
-        <h2>Scanning {{ scan_id }}</h2>
+        <h2>Scanning {{ scan_id }} <span id="total-timer" style="float: right; font-variant-numeric: tabular-nums;">0:00</span></h2>
         <ul id="stage-list" class="stage-list">
-            <li id="stage-Extract" class="stage pending">Extract</li>
-            <li id="stage-Ingest" class="stage pending">Ingest</li>
-            <li id="stage-Detect" class="stage pending">Detect</li>
-            <li id="stage-Adjudicate" class="stage pending">Adjudicate</li>
-            <li id="stage-Certify" class="stage pending">Certify</li>
+            <li id="stage-Extract" class="stage pending">
+                <div class="stage-row"><span class="stage-name">Extract</span> <span class="stage-timer"></span></div>
+                <div class="stage-info">ffmpeg is reading per-frame luminance and a 3×3 tiled grid</div>
+                <div class="sweep-rail"><div class="sweep-segment"></div></div>
+            </li>
+            <li id="stage-Ingest" class="stage pending">
+                <div class="stage-row"><span class="stage-name">Ingest</span> <span class="stage-timer"></span></div>
+                <div class="stage-info">
+                    streaming frames into ClickHouse over the MCP server
+                    <p id="slow-status" style="display: none; color: #ff9800; font-size: 0.9rem; margin-top: 0.5rem; margin-bottom: 0;">Waking the analytics warehouse (ClickHouse Cloud suspends idle services; first query can take ~30s)</p>
+                </div>
+                <div class="sweep-rail"><div class="sweep-segment"></div></div>
+            </li>
+            <li id="stage-Detect" class="stage pending">
+                <div class="stage-row"><span class="stage-name">Detect</span> <span class="stage-timer"></span></div>
+                <div class="stage-info">running the sliding-window SQL against the published thresholds</div>
+                <div class="sweep-rail"><div class="sweep-segment"></div></div>
+            </li>
+            <li id="stage-Adjudicate" class="stage pending">
+                <div class="stage-row"><span class="stage-name">Adjudicate</span> <span class="stage-timer"></span></div>
+                <div class="stage-info">Gemini is reviewing the flagged span — this is the slow step, usually 30–60s</div>
+                <div class="sweep-rail"><div class="sweep-segment"></div></div>
+            </li>
+            <li id="stage-Certify" class="stage pending">
+                <div class="stage-row"><span class="stage-name">Certify</span> <span class="stage-timer"></span></div>
+                <div class="stage-info">writing the certificate to the ledger, then reading it back out</div>
+                <div class="sweep-rail"><div class="sweep-segment"></div></div>
+            </li>
         </ul>
+        <p class="animation-notice" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2rem;">This screen animates at 0.42 Hz — well under the 3.00 flashes/sec limit it screens for — and stops entirely under reduced-motion.</p>
     </main>
     <script>
         const scanId = "{{ scan_id }}";
         const stageList = document.getElementById('stage-list');
+        const totalTimerEl = document.getElementById('total-timer');
         
         let fetchCount = 0;
         let statusInterval;
         let slowQueryTimeout;
+        
+        const startTime = Date.now();
+        const stageStartTimes = {};
+
+        setInterval(() => {
+            const now = Date.now();
+            const totalElapsed = Math.floor((now - startTime) / 1000);
+            const m = Math.floor(totalElapsed / 60);
+            const s = (totalElapsed % 60).toString().padStart(2, '0');
+            if (totalTimerEl) totalTimerEl.textContent = `${m}:${s}`;
+            
+            document.querySelectorAll('.stage.active').forEach(el => {
+                const stageId = el.id;
+                if (!stageStartTimes[stageId]) {
+                    stageStartTimes[stageId] = now;
+                }
+                const stageElapsed = Math.floor((now - stageStartTimes[stageId]) / 1000);
+                const timerEl = el.querySelector('.stage-timer');
+                if (timerEl) timerEl.textContent = `${stageElapsed}s`;
+            });
+        }, 1000);
 
         async function pollStatus() {
             try {
@@ -50,23 +96,37 @@
                 const data = await res.json();
                 let allDone = true;
                 
-                // If we get a response, clear the slow query warning timeout
                 if (slowQueryTimeout) {
                     clearTimeout(slowQueryTimeout);
                 }
-                const msgEl = document.getElementById('slow-status');
-                if (msgEl) msgEl.style.display = 'none';
+                
+                let firstActiveFound = false;
                 
                 data.stages.forEach(stage => {
                     const el = document.getElementById(`stage-${stage.name}`);
                     if (el) {
                         if (stage.status === 'done' && el.classList.contains('pending')) {
                             el.classList.remove('pending');
+                            el.classList.remove('active');
                             el.classList.add('done');
-                            el.innerHTML = `${stage.name} <span class="tick" aria-hidden="true">✓</span>`;
+                            const nameSpan = el.querySelector('.stage-name');
+                            if (nameSpan) {
+                                nameSpan.innerHTML = `${stage.name} <span class="tick" aria-hidden="true">✓</span>`;
+                            } else {
+                                el.innerHTML = `${stage.name} <span class="tick" aria-hidden="true">✓</span>`;
+                            }
                         }
+                        
                         if (stage.status !== 'done') {
                             allDone = false;
+                            if (!firstActiveFound) {
+                                if (el.classList.contains('pending')) {
+                                    el.classList.add('active');
+                                }
+                                firstActiveFound = true;
+                            } else {
+                                el.classList.remove('active');
+                            }
                         }
                     }
                 });
@@ -84,6 +144,8 @@
                 }
                 
                 if (data.status === 'complete' || allDone) {
+                    // Remove active from any remaining if complete
+                    document.querySelectorAll('.stage.active').forEach(el => el.classList.remove('active'));
                     setTimeout(() => {
                         window.location.href = `/report/${scanId}`;
                     }, 500);
@@ -98,14 +160,9 @@
         
         slowQueryTimeout = setTimeout(() => {
             let msgEl = document.getElementById('slow-status');
-            if (!msgEl) {
-                msgEl = document.createElement('p');
-                msgEl.id = 'slow-status';
-                msgEl.style.color = '#ff9800';
-                msgEl.textContent = 'Waking the analytics warehouse (ClickHouse Cloud suspends idle services; first query can take ~30s)';
-                document.querySelector('main').appendChild(msgEl);
+            if (msgEl) {
+                msgEl.style.display = 'block';
             }
-            msgEl.style.display = 'block';
         }, 3000);
         
         pollStatus();

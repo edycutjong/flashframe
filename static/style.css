@@ -186,6 +186,12 @@ button:focus, a:focus, input:focus, .violation-band:focus {
         width: 100%;
     }
     
+    .sweep-segment {
+        animation: none;
+        width: 100%;
+        background: var(--pass);
+    }
+    
     .reduced-motion-disabled {
         opacity: 0.5;
         pointer-events: none;
@@ -324,6 +330,61 @@ button:focus, a:focus, input:focus, .violation-band:focus {
 .stage.done {
     color: var(--pass);
 }
+.stage.active {
+    color: var(--text);
+}
+.stage:not(.active) .stage-info,
+.stage:not(.active) .sweep-rail,
+.stage:not(.active) .stage-timer {
+    display: none;
+}
+.stage-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.stage-info {
+    font-size: 1rem;
+    color: var(--text-dim);
+    margin: 0.5rem 0;
+}
+.stage-timer {
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    font-size: 1rem;
+}
+.sweep-rail {
+    width: 100%;
+    height: 2px;
+    background: var(--grid);
+    position: relative;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+.sweep-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    background: linear-gradient(to right, transparent, var(--pass), transparent);
+    animation: sweep-translate 2.4s ease-in-out infinite;
+}
+
+/* 
+ * The published limit is 3.00 flashes/sec.
+ * This 2.4s animation cycle is ~0.42 Hz to stay well under that limit.
+ * Do not speed this up.
+ */
+@keyframes sweep-translate {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(350%);
+    }
+}
+
 .tick {
     color: var(--pass);
 }
