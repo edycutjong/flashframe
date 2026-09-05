@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     role="img" aria-label="Flashframe — measures every frame of a locked cut against the published Ofcom flash limit. The luminance curve crosses the dashed published line: the span turns from green under-line to red over-line.">
+  <!--
+    Flashframe static mark — the frozen moment, held.
+    Mechanism: MEASURE AGAINST A PUBLISHED LINE.
+    Reads as an instrument, never as cinema: no reel, no clapperboard, no sparkle.
+    Carries its own dark plate so essential strokes hold >=3:1 on BOTH
+    GitHub light (#ffffff) and GitHub dark (#0d1117).
+    Colours use the CSS-variable-with-hex-fallback pattern: the hex wins when
+    Playwright rasterises the standalone file, the token wins when _tokens.css
+    is loaded in an app.
+  -->
+  <defs>
+    <linearGradient id="ff-plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="var(--surface, #171C26)"/>
+      <stop offset="100%" stop-color="var(--bg-base, #0F131A)"/>
+    </linearGradient>
+    <linearGradient id="ff-under" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="var(--primary, #3DD68C)" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="var(--primary, #3DD68C)" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="ff-band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="var(--accent, #FF4D4D)" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="var(--accent, #FF4D4D)" stop-opacity="0.34"/>
+    </linearGradient>
+    <filter id="ff-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- plate: the instrument body -->
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#ff-plate)"/>
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none"
+        stroke="var(--border-default, #ffffff)" stroke-opacity="0.36" stroke-width="6"/>
+
+  <!-- the violating span: 22 frames, lit red beneath the line -->
+  <rect x="222" y="92" width="88" height="316" rx="6" fill="url(#ff-band)"/>
+  <rect x="222" y="392" width="88" height="16" rx="8" fill="var(--accent, #FF4D4D)"/>
+
+  <!-- the published line: achromatic and dashed, because it is not our opinion -->
+  <path d="M 56 236 H 456" fill="none"
+        stroke="var(--threshold-solid, #FFFFFF)" stroke-opacity="0.66"
+        stroke-width="11" stroke-linecap="round" stroke-dasharray="26 22"/>
+
+  <!-- luminance curve, under the line -->
+  <path d="M 58 342 L 112 322 L 152 352 L 196 330 L 226 344"
+        fill="none" stroke="url(#ff-under)" stroke-width="23"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 306 344 L 344 326 L 386 352 L 454 336"
+        fill="none" stroke="var(--primary, #3DD68C)" stroke-width="23"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- luminance curve, across the line: the alternation that violates 3.00/sec -->
+  <path d="M 226 344 L 246 118 L 264 306 L 286 118 L 306 344"
+        fill="none" stroke="var(--accent, #FF4D4D)" stroke-width="23"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#ff-glow)"/>
+</svg>
