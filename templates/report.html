@@ -51,7 +51,7 @@
             {% else %}
             <figure class="timeline-figure">
                 <div class="draw-mask" style="width: 100%; height: 100%; overflow: hidden; position: absolute; left: 0; top: 0;">
-                    <svg class="timeline-svg" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" role="img" aria-label="Luminance curve. Verdict: {{ verdict }}. {{ 1 if not cert.passed else 0 }} spans flagged. Measured rate: {{ cert.measured_value }} Hz.">
+                    <svg class="timeline-svg" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" role="img" aria-label="Luminance curve. Verdict: {{ verdict }}. {{ 1 if not cert.passed else 0 }} spans flagged. Measured rate: {{ "%.2f" | format(cert.measured_value) }} Hz.">
                         <polygon class="timeline-curve {% if cert.passed %}pass-curve{% endif %}" points="{{ polygon_points }}"></polygon>
                         
                         <!-- Threshold line -->
@@ -61,7 +61,7 @@
                         {% if not cert.passed %}
                         <a href="#card-1">
                             <rect class="violation-band" x="{{ span_x }}" y="0" width="{{ span_width }}" height="{{ height }}">
-                                <title>Frames {{ cert.frame_start }}-{{ cert.frame_end }} | {{ cert.measured_value }} Hz</title>
+                                <title>Frames {{ cert.frame_start }}-{{ cert.frame_end }} | {{ "%.2f" | format(cert.measured_value) }} Hz</title>
                             </rect>
                         </a>
                         {% endif %}
@@ -90,7 +90,7 @@
                     <div style="color: var(--text-mid);">Frames <span class="measured-value">{{ cert.frame_start }}</span>-<span class="measured-value">{{ cert.frame_end }}</span> &bull; Timecode <span class="measured-value">{{ "%.2f" | format(cert.frame_start / fps) }}</span>s - <span class="measured-value">{{ "%.2f" | format(cert.frame_end / fps) }}</span>s &bull; Length <span class="measured-value">{{ cert.frame_end - cert.frame_start }}</span> frames</div>
                 </div>
                 <div style="text-align: right;">
-                    <strong style="color: var(--fail);" class="measured-value">{{ cert.measured_value }} Hz</strong>
+                    <strong style="color: var(--fail);" class="measured-value">{{ "%.2f" | format(cert.measured_value) }} Hz</strong>
                 </div>
             </div>
             
@@ -150,7 +150,7 @@
                     </div>
                     
                     <div class="confirm-layer" id="layer-1" style="display: none;">
-                        <h3>Hazard: Photosensitivity ({{ cert.measured_value }} Hz)</h3>
+                        <h3>Hazard: Photosensitivity ({{ "%.2f" | format(cert.measured_value) }} Hz)</h3>
                         <p>This clip contains strobing that may trigger seizures in photosensitive viewers.</p>
                         
                         <div class="confirm-actions">
